@@ -91,10 +91,11 @@ public class MainActivity extends AppCompatActivity {
                 {
                     var apiEx = (ApiException)ex;
                     var headers = apiEx.getResponseHeaders();
+                    var headersText = headers == null ? "" : headers.entrySet().stream().map(
+                            entry -> entry.getKey() + ": " + String.join(" \n", entry.getValue())
+                    ).collect(Collectors.joining());
                     mes += String.format(Locale.ROOT, " %s (ErrorCode: %d), ResponseHeaders: \n%s\n ResponseBody: \n%s\n",
-                            KINO_API_ERROR_MES, apiEx.getCode(), headers.entrySet().stream().map(entry ->
-                                entry.getKey() + ": " + String.join(" \n", entry.getValue())
-                            ).collect(Collectors.joining()), apiEx.getResponseBody());
+                            KINO_API_ERROR_MES, apiEx.getCode(), headersText, apiEx.getResponseBody());
                 }
                 Log.e(LOG_TAG, mes.isEmpty() ? UNKNOWN_WEB_ERROR_MES : mes, ex);
             }
@@ -109,8 +110,9 @@ public class MainActivity extends AppCompatActivity {
             if (error != null)
             {
                 var mes = error.getValue();
-                showSnackBar(error instanceof ApiException ? KINO_API_ERROR_MES : (mes.isEmpty() ?
-                        UNKNOWN_WEB_ERROR_MES : mes));
+//                showSnackBar(error instanceof ApiException ? KINO_API_ERROR_MES : (mes.isEmpty() ?
+//                        UNKNOWN_WEB_ERROR_MES : mes));
+                showSnackBar(UNKNOWN_WEB_ERROR_MES);
                 if (!mes.isBlank())
                 {
                     txtQuery.setError(mes);
