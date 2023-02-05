@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="pro">#f3f4f7</color>
+    <color name="top">#0066ff</color>
+    <color name="biz">#eb236b</color>
+    <color name="neo">#4bd0a0</color>
+    <color name="neo_light">#83ffd1</color>
+    <color name="neo_dark">#009e71</color>
+    <color name="purple">#5d00f5</color>
+    <color name="purple_light">#9a47ff</color>-->
+    <color name="purple_dark">#0000c1</color>-->
+    <color name="black">#FFf5f5f5</color>
+    <color name="black_700">#434343</color>
+    <color name="black_800">#262626</color>
+    <color name="black_900">#000000</color>
+    <color name="white">#FFFFFFFF</color>
+</resources>
