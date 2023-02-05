@@ -3,21 +3,33 @@ package org.mmu.myfirstandroidapp;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.ProgressBar;
 import android.widget.SimpleAdapter;
+import android.widget.TextView;
 
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.textfield.TextInputEditText;
+import com.squareup.picasso.Picasso;
 
+import java.io.BufferedInputStream;
+import java.io.InputStream;
+import java.net.URL;
+import java.net.URLConnection;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,6 +43,25 @@ import io.swagger.client.ApiException;
 import io.swagger.client.api.FilmsApi;
 
 public class MainActivity extends AppCompatActivity {
+   
+    private static final String LOG_TAG = MainActivity.class.getSimpleName();
+    private static final List<Map<String, String>> _cardList = new ArrayList<>();
+    /**
+     * Демо-ключ неофициального API Книнопоиска
+     *
+     * @see <a href="https://kinopoiskapiunofficial.tech/">Kinopoisk Api Unofficial</a>
+     *
+     * @apiNote Этот ключ не имеет ограничений по количеству запросов в сутки, но имеет ограничение
+     *      20 запросов в секунду.
+     *
+     * @implSpec В качестве альтернативы вы можете зарегистрироваться самостоятельно и получить
+     *      собственный ключ, но тогда будет действовать ограничение в 500 запросов в день.
+     */
+    private static final String KINO_DEMO_API_KEY = "e30ffed0-76ab-4dd6-b41f-4c9da2b2735b";
+    public static final String ADAPTER_FILM_ID = "ID";
+    public static final String ADAPTER_TITLE = "Title";
+    public static final String ADAPTER_CONTENT = "Content";
+    private static final String ADAPTER_POSTER_PREVIEW_URL = "ImageUrl";
     private boolean isRus;
     private MaterialToolbar customToolBar;
     
@@ -49,18 +80,43 @@ public class MainActivity extends AppCompatActivity {
         private Map.Entry<Exception, String> error;
         private static final String UNKNOWN_WEB_ERROR_MES = "Ошибка загрузки данных по сети:";
         private static final String KINO_API_ERROR_MES = "Ошибка API KinoPoisk";
-        
+    
+        /**
+         * Причёсанный код отсюда: <a href="https://stackoverflow.com/a/3681726/2323972">...</a>
+         */
+        private Bitmap downloadImageBitmap(String url)
+        {
+            Bitmap bm = null;
+            try
+            {
+                URL aURL = new URL(url);
+                URLConnection conn = aURL.openConnection();
+                conn.connect();
+                try (InputStream is = conn.getInputStream())
+                {
+                    try (BufferedInputStream bis = new BufferedInputStream(is))
+                    {
+                        bm = BitmapFactory.decodeStream(bis);
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Log.e(LOG_TAG, "Error getting bitmap", e);
+            }
+            return bm;
+        }
         
         public WebDataDownloadTask(FilmsApi engine)
         {
             filmsApi = engine;
         }
-        
+    
         @Override
         protected void onPreExecute()
         {
             super.onPreExecute();
-            _cardList.clear();
+            clearLists();
             cardsAdapter.notifyDataSetChanged();
             progBar.setVisibility(View.VISIBLE);
             Log.d(LOG_TAG, "Начало загрузки веб-ресурса...");
@@ -78,8 +134,10 @@ public class MainActivity extends AppCompatActivity {
                     {
                         return null;
                     }
-                    _cardList.add(Map.of(ADAPTER_KEY_TITLE, isRus ? filmData.getNameRu() : filmData.getNameEn(),
-                            ADAPTER_CONTENT,filmData.getGenres().get(0).getGenre() + " (" + filmData.getYear() + ")")
+                    var id = String.valueOf(filmData.getFilmId());
+                    _cardList.add(Map.of(ADAPTER_TITLE, isRus ? filmData.getNameRu() : filmData.getNameEn(),
+                            ADAPTER_CONTENT,filmData.getGenres().get(0).getGenre() + " (" + filmData.getYear() + ")",
+                            ADAPTER_FILM_ID, id, ADAPTER_POSTER_PREVIEW_URL, filmData.getPosterUrlPreview())
                     );
                 }
             }
@@ -110,8 +168,6 @@ public class MainActivity extends AppCompatActivity {
             if (error != null)
             {
                 var mes = error.getValue();
-//                showSnackBar(error instanceof ApiException ? KINO_API_ERROR_MES : (mes.isEmpty() ?
-//                        UNKNOWN_WEB_ERROR_MES : mes));
                 showSnackBar(UNKNOWN_WEB_ERROR_MES);
                 if (!mes.isBlank())
                 {
@@ -122,41 +178,28 @@ public class MainActivity extends AppCompatActivity {
             {
                 Log.d(LOG_TAG, "Загрузка Веб-ресурса завершена успешно");
                 cardsAdapter.notifyDataSetChanged();
+                LinearLayout cardsContainer = findViewById(R.id.card_linear_lyaout);
+                var results = new ArrayList<View>();
+    
+                for (int i = 0; i < _cardList.size(); i++)
+                {
+                    LayoutInflater inflater = getLayoutInflater();
+                    var listItem = inflater.inflate(R.layout.list_item, null);
+                    var cardData = _cardList.get(i);
+                    ((TextView)listItem.findViewById(R.id.film_id_holder)).setText(cardData.get(ADAPTER_FILM_ID));
+                    ((TextView)listItem.findViewById(R.id.card_title)).setText(cardData.get(ADAPTER_TITLE));
+                    ((TextView)listItem.findViewById(R.id.card_content)).setText(cardData.get(ADAPTER_CONTENT));
+                    var imgView = ((ImageView)listItem.findViewById(R.id.poster_preview));
+                    Picasso.get().load(Uri.parse(cardData.get(ADAPTER_POSTER_PREVIEW_URL))).into(imgView);
+                    cardsContainer.addView(listItem);
+                }
             }
         }
     }
     
     //endregion 'Типы'
-    
-    private static final String LOG_TAG = MainActivity.class.getSimpleName();
-    /**
-     * Демо-ключ неофициального API Книнопоиска
-     *
-     * @see <a href="https://kinopoiskapiunofficial.tech/">Kinopoisk Api Unofficial</a>
-     *
-     * @apiNote Этот ключ не имеет ограничений по количеству запросов в сутки, но имеет ограничение
-     *      20 запросов в секунду.
-     *
-     * @implSpec В качестве альтернативы вы можете зарегистрироваться самостоятельно и получить
-     *      собственный ключ, но тогда будет действовать ограничение в 500 запросов в день.
-     */
-    private static final String KINO_DEMO_API_KEY = "e30ffed0-76ab-4dd6-b41f-4c9da2b2735b";
-    public static final String ADAPTER_KEY_TITLE = "Title";
-    public static final String ADAPTER_CONTENT = "Content";
-    private static final List<Map<String, String>> _cardList = new ArrayList<>(List.of(
-            Map.of(
-                    ADAPTER_KEY_TITLE, "Заголовок 1",
-                    ADAPTER_CONTENT, "Данные 1"
-            ),
-            Map.of(
-                    ADAPTER_KEY_TITLE, "Заголовок 2",
-                    ADAPTER_CONTENT, "Данные 2"
-            ),
-            Map.of(
-                    ADAPTER_KEY_TITLE, "Заголовок 3",
-                    ADAPTER_CONTENT, "Данные 3"
-            )
-    ));
+
+
     
     private ProgressBar progBar;
     private FilmsApi filmsApi;
@@ -203,12 +246,13 @@ public class MainActivity extends AppCompatActivity {
         this.setSupportActionBar(customToolBar);
         final ListView lvCards = findViewById(R.id.card_list);
         cardsAdapter = new SimpleAdapter(getApplicationContext(), _cardList, R.layout.list_item,
-                new String[]{ADAPTER_KEY_TITLE, ADAPTER_CONTENT}, new int[]{R.id.card_title, R.id.card_content});
-        lvCards.setAdapter(cardsAdapter);
+                new String[]{ADAPTER_TITLE, ADAPTER_CONTENT, ADAPTER_FILM_ID},
+                new int[] {R.id.card_title, R.id.card_content, R.id.film_id_holder});
+        //lvCards.setAdapter(cardsAdapter);
         txtQuery.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_DONE)
             {
-                _cardList.clear();
+                clearLists();
                 cardsAdapter.notifyDataSetChanged();
                 var text  = Objects.requireNonNull(txtQuery.getText()).toString().replace("null", "");
                 getTopFilmsAsync(text);
@@ -287,7 +331,7 @@ public class MainActivity extends AppCompatActivity {
     
     private void showPopular()
     {
-        _cardList.clear();
+        clearLists();
         cardsAdapter.notifyDataSetChanged();
         customToolBar.setTitle(R.string.action_popular_title);
         this.getTopFilmsAsync();
@@ -295,8 +339,15 @@ public class MainActivity extends AppCompatActivity {
     
     private void showFavourites()
     {
-        _cardList.clear();
+        clearLists();
         cardsAdapter.notifyDataSetChanged();
         customToolBar.setTitle(R.string.action_favourites_title);
+    }
+    
+    private void clearLists()
+    {
+        _cardList.clear();
+        LinearLayout ll = findViewById(R.id.card_linear_lyaout);
+        ll.removeAllViews();
     }
 }

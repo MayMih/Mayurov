@@ -27,6 +27,10 @@ android {
         sourceCompatibility JavaVersion.VERSION_11
         targetCompatibility JavaVersion.VERSION_11
     }
+
+    buildFeatures {
+        dataBinding true
+    }
 }
 
 dependencies {
@@ -41,5 +45,7 @@ dependencies {
     implementation 'com.squareup.okio:okio:3.3.0'
     implementation 'io.gsonfire:gson-fire:1.9.0-alpha2'
     implementation files('libs\\swagger-java-client-1.0.0.jar')
+    implementation 'androidx.databinding:databinding-common:7.4.1'
+    implementation 'com.squareup.picasso:picasso:2.71828'
     debugImplementation files('libs\\swagger-java-client-1.0.0-sources.jar')
 }

@@ -38,7 +38,22 @@
             />
     </com.google.android.material.textfield.TextInputLayout>
 
+    <ScrollView
+        android:id="@+id/card_container"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:orientation="vertical"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/text_input_layout">
+
+        <LinearLayout
+            android:id="@+id/card_linear_lyaout"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical" />
+    </ScrollView>
     <ListView
+        android:visibility="gone"
         android:id="@+id/card_list"
         android:layout_width="match_parent"
         android:layout_height="0dp"
