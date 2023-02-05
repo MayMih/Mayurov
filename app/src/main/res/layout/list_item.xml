@@ -20,8 +20,9 @@
             android:id="@+id/card_title"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textSize="24sp"
+            android:textSize="18sp"
             android:textStyle="bold"
+            android:textColor="?colorPrimary"
             tools:text="CARD_TITLE_PLACEHOLDER"
             />
         <TextView
@@ -30,8 +31,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textSize="16sp"
-            android:textStyle="normal"
-            android:textColor="@color/neo"
+            android:textStyle="bold"
             android:layout_margin="5dp"
             tools:text="CARD_CONTENT_PLACEHOLDER"
             />

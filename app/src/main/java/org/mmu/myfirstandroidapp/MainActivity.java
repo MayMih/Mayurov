@@ -32,6 +32,7 @@ import io.swagger.client.api.FilmsApi;
 
 public class MainActivity extends AppCompatActivity {
     private boolean isRus;
+    private MaterialToolbar customToolBar;
     
     //region 'Типы'
     
@@ -179,7 +180,7 @@ public class MainActivity extends AppCompatActivity {
         txtQuery = findViewById(R.id.txt_input);
         this.initViews();
         filmsApi = initFilmsApi();
-        getTopFilms("");
+        showPopular();
         Log.w(LOG_TAG, "end of onCreate function");
     }
     
@@ -196,7 +197,7 @@ public class MainActivity extends AppCompatActivity {
      */
     private void initViews()
     {
-        final MaterialToolbar customToolBar = findViewById(R.id.top_toolbar);
+        customToolBar = findViewById(R.id.top_toolbar);
         this.setSupportActionBar(customToolBar);
         final ListView lvCards = findViewById(R.id.card_list);
         cardsAdapter = new SimpleAdapter(getApplicationContext(), _cardList, R.layout.list_item,
@@ -208,10 +209,7 @@ public class MainActivity extends AppCompatActivity {
                 _cardList.clear();
                 cardsAdapter.notifyDataSetChanged();
                 var text  = Objects.requireNonNull(txtQuery.getText()).toString().replace("null", "");
-                if (!text.isBlank())
-                {
-                    getTopFilms(text);
-                }
+                getTopFilmsAsync(text);
                 return false;
             }
             return true;
@@ -227,19 +225,23 @@ public class MainActivity extends AppCompatActivity {
         txtQuery.setEnabled(false);
         popup.setAction(R.string.repeat_button_caption, view -> {
             var text  = Objects.requireNonNull(txtQuery.getText()).toString().replace("null", "");
-            this.getTopFilms(text);
+            this.getTopFilmsAsync(text);
             popup.dismiss();
             txtQuery.setEnabled(true);
         });
         popup.show();
     }
     
+    private void getTopFilmsAsync()
+    {
+        getTopFilmsAsync("");
+    }
     /**
      * Получает данные по топ 100 фильмов (первые 20 записей) или по конкретному фильму (если request не пуст)
      *
      * @param request - ИД фильма, инфу по которому нужно получить
      */
-    private void getTopFilms(String request)
+    private void getTopFilmsAsync(String request)
     {
         if (downloadTask != null && !downloadTask.isCancelled() && (downloadTask.getStatus() == AsyncTask.Status.RUNNING))
         {
@@ -263,15 +265,13 @@ public class MainActivity extends AppCompatActivity {
             case R.id.action_switch_to_favorites:
             {
                 Log.d(LOG_TAG, String.format("Команда меню \"%s\"", item.getTitle()));
+                showFavourites();
                 break;
             }
             case R.id.action_switch_to_popular:
             {
                 Log.d(LOG_TAG, String.format("Команда меню \"%s\"", item.getTitle()));
-                //TODO: теоретически здесь может быть эксепшен
-                Objects.requireNonNull(txtQuery.getText()).clear();
-                _cardList.clear();
-                cardsAdapter.notifyDataSetChanged();
+                showPopular();
                 break;
             }
             default:
@@ -281,5 +281,20 @@ public class MainActivity extends AppCompatActivity {
             }
         }
         return super.onOptionsItemSelected(item);
+    }
+    
+    private void showPopular()
+    {
+        _cardList.clear();
+        cardsAdapter.notifyDataSetChanged();
+        customToolBar.setTitle(R.string.action_popular_title);
+        this.getTopFilmsAsync();
+    }
+    
+    private void showFavourites()
+    {
+        _cardList.clear();
+        cardsAdapter.notifyDataSetChanged();
+        customToolBar.setTitle(R.string.action_favourites_title);
     }
 }
