@@ -16,15 +16,26 @@
         app:titleTextColor="?colorOnPrimary"
         />
 
+    <ProgressBar
+        android:id="@+id/progress_bar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintBottom_toBottomOf="@+id/scrollView2"
+        app:layout_constraintEnd_toEndOf="@+id/scrollView2"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/top_tool_bar">
+
+    </ProgressBar>
     <ImageView
         android:id="@+id/imageView"
         android:layout_width="match_parent"
         android:layout_height="300dp"
-        app:layout_constraintTop_toBottomOf="@+id/top_toolbar"
+        app:layout_constraintTop_toBottomOf="@+id/top_tool_bar"
         tools:layout_editor_absoluteX="0dp"
         tools:srcCompat="@tools:sample/backgrounds/scenic" />
 <!--    app:layout_constraintTop_toBottomOf="@+id/top_toolbar"-->
     <ScrollView
+        android:id="@+id/scrollView2"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         app:layout_constraintBottom_toBottomOf="parent"

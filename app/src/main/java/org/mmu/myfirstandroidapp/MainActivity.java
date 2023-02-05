@@ -94,7 +94,6 @@ public class MainActivity extends AppCompatActivity {
         {
             super.onPreExecute();
             clearLists();
-            cardsAdapter.notifyDataSetChanged();
             progBar.setVisibility(View.VISIBLE);
             Log.d(Constants.LOG_TAG, "Начало загрузки веб-ресурса...");
         }
@@ -154,7 +153,6 @@ public class MainActivity extends AppCompatActivity {
             else
             {
                 Log.d(Constants.LOG_TAG, "Загрузка Веб-ресурса завершена успешно");
-                cardsAdapter.notifyDataSetChanged();
                 LinearLayout cardsContainer = findViewById(R.id.card_linear_lyaout);
                 var results = new ArrayList<View>();
     
@@ -187,7 +185,6 @@ public class MainActivity extends AppCompatActivity {
     
     
     private ProgressBar progBar;
-    private FilmsApi filmsApi;
     
     /**
      * Обязательно пересоздавать задачу перед каждым вызовом!
@@ -195,7 +192,6 @@ public class MainActivity extends AppCompatActivity {
     private AsyncTask<String, Void, Void> downloadTask;
     private TextInputEditText txtQuery;
     private View androidContentView;
-    private SimpleAdapter cardsAdapter;
     
     @Override
     protected void onCreate(Bundle savedInstanceState)
@@ -209,19 +205,11 @@ public class MainActivity extends AppCompatActivity {
         progBar.setVisibility(View.INVISIBLE);
         txtQuery = findViewById(R.id.txt_input);
         this.initViews();
-        filmsApi = initFilmsApi();
+        FilmsApiHelper.initFilmsApi();
         showPopular();
         Log.w(Constants.LOG_TAG, "end of onCreate function");
     }
-    
-    private FilmsApi initFilmsApi()
-    {
-        var api = new ApiClient();
-        api.setApiKey(Constants.KINO_DEMO_API_KEY);
-        return new FilmsApi(api);
-    }
-    
-    
+
     /**
      * Метод настройки виджетов
      */
@@ -230,15 +218,10 @@ public class MainActivity extends AppCompatActivity {
         customToolBar = findViewById(R.id.top_toolbar);
         this.setSupportActionBar(customToolBar);
         final ListView lvCards = findViewById(R.id.card_list);
-        cardsAdapter = new SimpleAdapter(getApplicationContext(), _cardList, R.layout.list_item,
-                new String[]{Constants.ADAPTER_TITLE, Constants.ADAPTER_CONTENT, Constants.ADAPTER_FILM_ID},
-                new int[] {R.id.card_title, R.id.card_content, R.id.film_id_holder});
-        //lvCards.setAdapter(cardsAdapter);
         txtQuery.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_DONE)
             {
                 clearLists();
-                cardsAdapter.notifyDataSetChanged();
                 var text  = Objects.requireNonNull(txtQuery.getText()).toString().replace("null", "");
                 getTopFilmsAsync(text);
                 return false;
@@ -278,7 +261,7 @@ public class MainActivity extends AppCompatActivity {
         {
             downloadTask.cancel(true);
         }
-        downloadTask = new WebDataDownloadTask(filmsApi).execute(request);
+        downloadTask = new WebDataDownloadTask(FilmsApiHelper.filmsApi).execute(request);
     }
 
     @Override
@@ -317,7 +300,6 @@ public class MainActivity extends AppCompatActivity {
     private void showPopular()
     {
         clearLists();
-        cardsAdapter.notifyDataSetChanged();
         customToolBar.setTitle(R.string.action_popular_title);
         this.getTopFilmsAsync();
     }
@@ -325,7 +307,6 @@ public class MainActivity extends AppCompatActivity {
     private void showFavourites()
     {
         clearLists();
-        cardsAdapter.notifyDataSetChanged();
         customToolBar.setTitle(R.string.action_favourites_title);
     }
     
