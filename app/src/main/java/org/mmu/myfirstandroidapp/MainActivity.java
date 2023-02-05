@@ -3,6 +3,7 @@ package org.mmu.myfirstandroidapp;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
@@ -43,36 +44,12 @@ import io.swagger.client.ApiException;
 import io.swagger.client.api.FilmsApi;
 
 public class MainActivity extends AppCompatActivity {
-   
-    private static final String LOG_TAG = MainActivity.class.getSimpleName();
+    
     private static final List<Map<String, String>> _cardList = new ArrayList<>();
-    /**
-     * Демо-ключ неофициального API Книнопоиска
-     *
-     * @see <a href="https://kinopoiskapiunofficial.tech/">Kinopoisk Api Unofficial</a>
-     *
-     * @apiNote Этот ключ не имеет ограничений по количеству запросов в сутки, но имеет ограничение
-     *      20 запросов в секунду.
-     *
-     * @implSpec В качестве альтернативы вы можете зарегистрироваться самостоятельно и получить
-     *      собственный ключ, но тогда будет действовать ограничение в 500 запросов в день.
-     */
-    private static final String KINO_DEMO_API_KEY = "e30ffed0-76ab-4dd6-b41f-4c9da2b2735b";
-    public static final String ADAPTER_FILM_ID = "ID";
-    public static final String ADAPTER_TITLE = "Title";
-    public static final String ADAPTER_CONTENT = "Content";
-    private static final String ADAPTER_POSTER_PREVIEW_URL = "ImageUrl";
     private boolean isRus;
     private MaterialToolbar customToolBar;
     
     //region 'Типы'
-    
-    private enum TopFilmsType
-    {
-        TOP_100_POPULAR_FILMS,
-        TOP_250_BEST_FILMS,
-        TOP_AWAIT_FILMS
-    }
     
     private class WebDataDownloadTask extends AsyncTask<String, Void, Void>
     {
@@ -102,7 +79,7 @@ public class MainActivity extends AppCompatActivity {
             }
             catch (Exception e)
             {
-                Log.e(LOG_TAG, "Error getting bitmap", e);
+                Log.e(Constants.LOG_TAG, "Error getting bitmap", e);
             }
             return bm;
         }
@@ -119,7 +96,7 @@ public class MainActivity extends AppCompatActivity {
             clearLists();
             cardsAdapter.notifyDataSetChanged();
             progBar.setVisibility(View.VISIBLE);
-            Log.d(LOG_TAG, "Начало загрузки веб-ресурса...");
+            Log.d(Constants.LOG_TAG, "Начало загрузки веб-ресурса...");
         }
         
         @Override
@@ -127,7 +104,7 @@ public class MainActivity extends AppCompatActivity {
         {
             try
             {
-                var response = filmsApi.apiV22FilmsTopGet(TopFilmsType.TOP_100_POPULAR_FILMS.name(), 1);
+                var response = filmsApi.apiV22FilmsTopGet(Constants.TopFilmsType.TOP_100_POPULAR_FILMS.name(), 1);
                 for (var filmData : response.getFilms())
                 {
                     if (isCancelled())
@@ -135,9 +112,9 @@ public class MainActivity extends AppCompatActivity {
                         return null;
                     }
                     var id = String.valueOf(filmData.getFilmId());
-                    _cardList.add(Map.of(ADAPTER_TITLE, isRus ? filmData.getNameRu() : filmData.getNameEn(),
-                            ADAPTER_CONTENT,filmData.getGenres().get(0).getGenre() + " (" + filmData.getYear() + ")",
-                            ADAPTER_FILM_ID, id, ADAPTER_POSTER_PREVIEW_URL, filmData.getPosterUrlPreview())
+                    _cardList.add(Map.of(Constants.ADAPTER_TITLE, isRus ? filmData.getNameRu() : filmData.getNameEn(),
+                            Constants.ADAPTER_CONTENT,filmData.getGenres().get(0).getGenre() + " (" + filmData.getYear() + ")",
+                            Constants.ADAPTER_FILM_ID, id, Constants.ADAPTER_POSTER_PREVIEW_URL, filmData.getPosterUrlPreview())
                     );
                 }
             }
@@ -155,7 +132,7 @@ public class MainActivity extends AppCompatActivity {
                     mes += String.format(Locale.ROOT, " %s (ErrorCode: %d), ResponseHeaders: \n%s\n ResponseBody: \n%s\n",
                             KINO_API_ERROR_MES, apiEx.getCode(), headersText, apiEx.getResponseBody());
                 }
-                Log.e(LOG_TAG, mes.isEmpty() ? UNKNOWN_WEB_ERROR_MES : mes, ex);
+                Log.e(Constants.LOG_TAG, mes.isEmpty() ? UNKNOWN_WEB_ERROR_MES : mes, ex);
             }
             return null;
         }
@@ -176,7 +153,7 @@ public class MainActivity extends AppCompatActivity {
             }
             else
             {
-                Log.d(LOG_TAG, "Загрузка Веб-ресурса завершена успешно");
+                Log.d(Constants.LOG_TAG, "Загрузка Веб-ресурса завершена успешно");
                 cardsAdapter.notifyDataSetChanged();
                 LinearLayout cardsContainer = findViewById(R.id.card_linear_lyaout);
                 var results = new ArrayList<View>();
@@ -186,12 +163,20 @@ public class MainActivity extends AppCompatActivity {
                     LayoutInflater inflater = getLayoutInflater();
                     var listItem = inflater.inflate(R.layout.list_item, null);
                     var cardData = _cardList.get(i);
-                    ((TextView)listItem.findViewById(R.id.film_id_holder)).setText(cardData.get(ADAPTER_FILM_ID));
-                    ((TextView)listItem.findViewById(R.id.card_title)).setText(cardData.get(ADAPTER_TITLE));
-                    ((TextView)listItem.findViewById(R.id.card_content)).setText(cardData.get(ADAPTER_CONTENT));
+                    var id = cardData.get(Constants.ADAPTER_FILM_ID);
+                    ((TextView)listItem.findViewById(R.id.film_id_holder)).setText(id);
+                    var title = cardData.get(Constants.ADAPTER_TITLE);
+                    ((TextView)listItem.findViewById(R.id.card_title)).setText(title);
+                    ((TextView)listItem.findViewById(R.id.card_content)).setText(cardData.get(Constants.ADAPTER_CONTENT));
                     var imgView = ((ImageView)listItem.findViewById(R.id.poster_preview));
-                    Picasso.get().load(Uri.parse(cardData.get(ADAPTER_POSTER_PREVIEW_URL))).into(imgView);
+                    Picasso.get().load(Uri.parse(cardData.get(Constants.ADAPTER_POSTER_PREVIEW_URL))).into(imgView);
                     cardsContainer.addView(listItem);
+                    listItem.setOnClickListener(v -> {
+                        var switchActivityIntent = new Intent(getApplicationContext(), CardActivity.class);
+                        switchActivityIntent.putExtra(Constants.ADAPTER_TITLE, title);
+                        switchActivityIntent.putExtra(Constants.ADAPTER_FILM_ID, id);
+                        startActivity(switchActivityIntent);
+                    });
                 }
             }
         }
@@ -199,7 +184,7 @@ public class MainActivity extends AppCompatActivity {
     
     //endregion 'Типы'
 
-
+    
     
     private ProgressBar progBar;
     private FilmsApi filmsApi;
@@ -215,7 +200,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState)
     {
-        Log.w(LOG_TAG, "start of onCreate function");
+        Log.w(Constants.LOG_TAG, "start of onCreate function");
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         isRus = Locale.getDefault().getLanguage().equalsIgnoreCase("ru");
@@ -226,13 +211,13 @@ public class MainActivity extends AppCompatActivity {
         this.initViews();
         filmsApi = initFilmsApi();
         showPopular();
-        Log.w(LOG_TAG, "end of onCreate function");
+        Log.w(Constants.LOG_TAG, "end of onCreate function");
     }
     
     private FilmsApi initFilmsApi()
     {
         var api = new ApiClient();
-        api.setApiKey(KINO_DEMO_API_KEY);
+        api.setApiKey(Constants.KINO_DEMO_API_KEY);
         return new FilmsApi(api);
     }
     
@@ -246,7 +231,7 @@ public class MainActivity extends AppCompatActivity {
         this.setSupportActionBar(customToolBar);
         final ListView lvCards = findViewById(R.id.card_list);
         cardsAdapter = new SimpleAdapter(getApplicationContext(), _cardList, R.layout.list_item,
-                new String[]{ADAPTER_TITLE, ADAPTER_CONTENT, ADAPTER_FILM_ID},
+                new String[]{Constants.ADAPTER_TITLE, Constants.ADAPTER_CONTENT, Constants.ADAPTER_FILM_ID},
                 new int[] {R.id.card_title, R.id.card_content, R.id.film_id_holder});
         //lvCards.setAdapter(cardsAdapter);
         txtQuery.setOnEditorActionListener((v, actionId, event) -> {
@@ -310,19 +295,19 @@ public class MainActivity extends AppCompatActivity {
         {
             case R.id.action_switch_to_favorites:
             {
-                Log.d(LOG_TAG, String.format("Команда меню \"%s\"", item.getTitle()));
+                Log.d(Constants.LOG_TAG, String.format("Команда меню \"%s\"", item.getTitle()));
                 showFavourites();
                 break;
             }
             case R.id.action_switch_to_popular:
             {
-                Log.d(LOG_TAG, String.format("Команда меню \"%s\"", item.getTitle()));
+                Log.d(Constants.LOG_TAG, String.format("Команда меню \"%s\"", item.getTitle()));
                 showPopular();
                 break;
             }
             default:
             {
-                Log.w(LOG_TAG, "Неизвестная команда меню!");
+                Log.w(Constants.LOG_TAG, "Неизвестная команда меню!");
                 break;
             }
         }
