@@ -1,4 +1,4 @@
-# Mayurov
+# TinkoffKinoLab
 
 ТЗ для выполнения задания:
 
