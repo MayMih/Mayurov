@@ -1,4 +1,4 @@
-package org.mmu.myfirstandroidapp;
+package org.mmu.tinkoffkinolab;
 
 public class Constants
 {

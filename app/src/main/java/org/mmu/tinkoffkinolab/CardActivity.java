@@ -1,13 +1,11 @@
-package org.mmu.myfirstandroidapp;
+package org.mmu.tinkoffkinolab;
 
-import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -24,7 +22,6 @@ import java.io.InputStream;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.AbstractMap;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -33,9 +30,6 @@ import java.util.stream.Collectors;
 
 import io.swagger.client.ApiException;
 import io.swagger.client.api.FilmsApi;
-import io.swagger.client.model.Country;
-import io.swagger.client.model.Film;
-import io.swagger.client.model.Genre;
 
 public class CardActivity extends AppCompatActivity
 {

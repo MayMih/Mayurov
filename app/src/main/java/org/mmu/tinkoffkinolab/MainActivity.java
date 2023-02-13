@@ -1,4 +1,4 @@
-package org.mmu.myfirstandroidapp;
+package org.mmu.tinkoffkinolab;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -19,7 +19,6 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.ProgressBar;
-import android.widget.SimpleAdapter;
 import android.widget.TextView;
 
 import com.google.android.material.appbar.MaterialToolbar;
@@ -37,9 +36,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
-import io.swagger.client.ApiClient;
 import io.swagger.client.ApiException;
 import io.swagger.client.api.FilmsApi;
 
@@ -111,7 +110,8 @@ public class MainActivity extends AppCompatActivity {
                         return null;
                     }
                     var id = String.valueOf(filmData.getFilmId());
-                    _cardList.add(Map.of(Constants.ADAPTER_TITLE, isRus ? filmData.getNameRu() : filmData.getNameEn(),
+                    Optional<String> name = Optional.ofNullable(isRus ? filmData.getNameRu() : filmData.getNameEn());
+                    _cardList.add(Map.of(Constants.ADAPTER_TITLE, name.orElse(id),
                             Constants.ADAPTER_CONTENT,filmData.getGenres().get(0).getGenre() + " (" + filmData.getYear() + ")",
                             Constants.ADAPTER_FILM_ID, id, Constants.ADAPTER_POSTER_PREVIEW_URL, filmData.getPosterUrlPreview())
                     );

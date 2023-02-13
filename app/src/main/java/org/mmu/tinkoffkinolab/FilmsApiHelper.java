@@ -1,4 +1,4 @@
-package org.mmu.myfirstandroidapp;
+package org.mmu.tinkoffkinolab;
 
 import io.swagger.client.ApiClient;
 import io.swagger.client.api.FilmsApi;

@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace 'org.mmu.myfirstandroidapp'
+    namespace 'org.mmu.tinkoffkinolab'
     compileSdk 33
 
     defaultConfig {
-        applicationId "org.mmu.myfirstandroidapp"
+        applicationId 'org.mmu.tinkoffkinolab'
         minSdk 24
         targetSdk 33
         versionCode 1
