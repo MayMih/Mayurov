@@ -1,6 +1,6 @@
 <resources>
     <!-- Base application theme. -->
-    <style name="Theme.MyFirstAndroidApp" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+    <style name="Theme.TinkoffKino" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <!-- Primary brand color. -->
         <item name="colorPrimary">@color/neo_dark</item>
         <item name="colorPrimaryVariant">@color/neo</item>
@@ -12,5 +12,9 @@
         <!-- Status bar color. -->
         <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
         <!-- Customize your theme here. -->
+        <item name="android:homeAsUpIndicator">@drawable/baseline_arrow_back_24</item>
+        <item name="colorControlNormal">?colorPrimary</item>
+        <item name="colorOutline">?colorPrimaryVariant</item>
+        <item name="textOutlineThickness">1dp</item>
     </style>
 </resources>

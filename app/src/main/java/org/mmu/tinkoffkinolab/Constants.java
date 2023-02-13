@@ -19,6 +19,8 @@ public class Constants
      */
     static final String KINO_DEMO_API_KEY = "e30ffed0-76ab-4dd6-b41f-4c9da2b2735b";
     static final String ADAPTER_POSTER_PREVIEW_URL = "ImageUrl";
+    static final String UNKNOWN_WEB_ERROR_MES = "Ошибка загрузки данных по сети:";
+    static final String KINO_API_ERROR_MES = "Ошибка API KinoPoisk";
     
     enum TopFilmsType
     {

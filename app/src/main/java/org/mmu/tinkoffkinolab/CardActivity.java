@@ -1,14 +1,12 @@
 package org.mmu.tinkoffkinolab;
 
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.RoundedCorner;
 import android.view.View;
 import android.widget.ImageView;
-import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -17,10 +15,6 @@ import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.snackbar.Snackbar;
 import com.squareup.picasso.Picasso;
 
-import java.io.BufferedInputStream;
-import java.io.InputStream;
-import java.net.URL;
-import java.net.URLConnection;
 import java.util.AbstractMap;
 import java.util.HashMap;
 import java.util.Locale;
@@ -34,59 +28,26 @@ import io.swagger.client.api.FilmsApi;
 public class CardActivity extends AppCompatActivity
 {
     private static final Map<String, String> _cardData = new HashMap<>();
+    private ImageView imgPoster;
     private String filmId;
     
-    private AsyncTask<String, Void, Void> downloadTask;
+    private WebDataDownloadTask downloadTask;
+    private TextView txtHeader;
+    private TextView txtContent;
+    private View androidContentView;
     
-    @Override
-    protected void onCreate(Bundle savedInstanceState)
-    {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_card);
     
-        MaterialToolbar customToolBar = findViewById(R.id.top_tool_bar);
-        customToolBar.setTitle( getIntent().getStringExtra(Constants.ADAPTER_TITLE));
-        this.setSupportActionBar(customToolBar);
-        Objects.requireNonNull(getSupportActionBar()).setDisplayHomeAsUpEnabled(true);
-        getSupportActionBar().setDisplayShowHomeEnabled(true);
-        
-        filmId = getIntent().getStringExtra(Constants.ADAPTER_FILM_ID);
-        
-        getFilmDataAsync();
-        
-    }
+    
+    //region 'Типы'
     
     private class WebDataDownloadTask extends AsyncTask<String, Void, Void>
     {
         private final FilmsApi filmsApi;
         private Map.Entry<Exception, String> error;
-        private static final String UNKNOWN_WEB_ERROR_MES = "Ошибка загрузки данных по сети:";
-        private static final String KINO_API_ERROR_MES = "Ошибка API KinoPoisk";
-        
-        /**
-         * Причёсанный код отсюда: <a href="https://stackoverflow.com/a/3681726/2323972">...</a>
-         */
-        private Bitmap downloadImageBitmap(String url)
+    
+        public Map.Entry<Exception, String> getError()
         {
-            Bitmap bm = null;
-            try
-            {
-                URL aURL = new URL(url);
-                URLConnection conn = aURL.openConnection();
-                conn.connect();
-                try (InputStream is = conn.getInputStream())
-                {
-                    try (BufferedInputStream bis = new BufferedInputStream(is))
-                    {
-                        bm = BitmapFactory.decodeStream(bis);
-                    }
-                }
-            }
-            catch (Exception e)
-            {
-                Log.e(Constants.LOG_TAG, "Error getting bitmap", e);
-            }
-            return bm;
+            return error;
         }
         
         public WebDataDownloadTask(FilmsApi engine)
@@ -112,7 +73,7 @@ public class CardActivity extends AppCompatActivity
                 _cardData.put(Constants.ADAPTER_TITLE, response.getNameRu());
                 var res = response.getDescription() + "\n\n Жанры: " + response.getGenres().stream().map(
                         genre -> genre.getGenre() + ", ").collect(Collectors.joining()) +
-                        "\n\nСтраны:" + response.getCountries().stream().map(country ->
+                        "\n\n Страны: " + response.getCountries().stream().map(country ->
                                 country.getCountry() + ", ").collect(Collectors.joining());
                 _cardData.put(Constants.ADAPTER_CONTENT, res);
                 _cardData.put(Constants.ADAPTER_POSTER_PREVIEW_URL, response.getPosterUrl());
@@ -129,9 +90,9 @@ public class CardActivity extends AppCompatActivity
                             entry -> entry.getKey() + ": " + String.join(" \n", entry.getValue())
                     ).collect(Collectors.joining());
                     mes += String.format(Locale.ROOT, " %s (ErrorCode: %d), ResponseHeaders: \n%s\n ResponseBody: \n%s\n",
-                            KINO_API_ERROR_MES, apiEx.getCode(), headersText, apiEx.getResponseBody());
+                            Constants.KINO_API_ERROR_MES, apiEx.getCode(), headersText, apiEx.getResponseBody());
                 }
-                Log.e(Constants.LOG_TAG, mes.isEmpty() ? UNKNOWN_WEB_ERROR_MES : mes, ex);
+                Log.e(Constants.LOG_TAG, mes.isEmpty() ? Constants.UNKNOWN_WEB_ERROR_MES : mes, ex);
             }
             return null;
         }
@@ -143,23 +104,54 @@ public class CardActivity extends AppCompatActivity
             super.onPostExecute(unused);
             var progBar = findViewById(R.id.progress_bar);
             progBar.setVisibility(View.GONE);
-            if (error != null)
+            if (downloadTask.getError() != null)
             {
-                var mes = error.getValue();
-                showSnackBar(UNKNOWN_WEB_ERROR_MES);
+                var mes = downloadTask.getError().getValue();
+                showSnackBar(Constants.UNKNOWN_WEB_ERROR_MES);
             }
             else
             {
                 Log.d(Constants.LOG_TAG, "Загрузка Веб-ресурса завершена успешно");
-                LinearLayout cardsContainer = findViewById(R.id.card_linear_lyaout);
-                ImageView imgView = ((ImageView)findViewById(R.id.imageView));
-                Picasso.get().load(Uri.parse(_cardData.get(Constants.ADAPTER_POSTER_PREVIEW_URL))).into(imgView);
-                TextView txtHeader = findViewById(R.id.card_title);
-                txtHeader.setText(_cardData.get(Constants.ADAPTER_TITLE));
-                TextView txtContent = findViewById(R.id.card_content);
-                txtContent.setText(_cardData.get(Constants.ADAPTER_CONTENT));
+                fillCardUI();
             }
         }
+    }
+    
+    //endregion 'Типы'
+    
+    
+    
+    @Override
+    protected void onCreate(Bundle savedInstanceState)
+    {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_card);
+        
+        MaterialToolbar customToolBar = findViewById(R.id.top_tool_bar);
+        customToolBar.setTitle(getIntent().getStringExtra(Constants.ADAPTER_TITLE));
+        this.setSupportActionBar(customToolBar);
+        Objects.requireNonNull(getSupportActionBar()).setDisplayHomeAsUpEnabled(true);
+        getSupportActionBar().setDisplayShowHomeEnabled(true);
+        
+        imgPoster = findViewById(R.id.poster_image_view);
+        txtHeader = findViewById(R.id.card_title);
+        txtContent = findViewById(R.id.card_content);
+        androidContentView = findViewById(android.R.id.content);
+        
+        filmId = getIntent().getStringExtra(Constants.ADAPTER_FILM_ID);
+        getFilmDataAsync();
+    }
+    
+    /**
+     * Метод заполнения UI карточки фильма из скачанных данных
+     */
+    private void fillCardUI()
+    {
+        // параметры fit() и centerCrop() сильно замедляют загрузку.
+        Picasso.get().load(_cardData.get(Constants.ADAPTER_POSTER_PREVIEW_URL)).fit().centerCrop().into(imgPoster);
+        txtHeader.setText(_cardData.get(Constants.ADAPTER_TITLE));
+        Objects.requireNonNull(getSupportActionBar()).setDisplayShowTitleEnabled(false);
+        txtContent.setText(_cardData.get(Constants.ADAPTER_CONTENT));
     }
     
     /**
@@ -167,7 +159,6 @@ public class CardActivity extends AppCompatActivity
      */
     private void showSnackBar(String message)
     {
-        var androidContentView = findViewById(android.R.id.content);
         var popup = Snackbar.make(androidContentView, message, Snackbar.LENGTH_INDEFINITE);
         popup.setAction(R.string.repeat_button_caption, view -> {
             getFilmDataAsync();
@@ -182,6 +173,6 @@ public class CardActivity extends AppCompatActivity
         {
             downloadTask.cancel(true);
         }
-        downloadTask = new WebDataDownloadTask(FilmsApiHelper.filmsApi).execute();
+        downloadTask = (WebDataDownloadTask)new WebDataDownloadTask(FilmsApiHelper.getFilmsApi()).execute();
     }
 }

@@ -25,6 +25,7 @@ import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.textfield.TextInputEditText;
 import com.squareup.picasso.Picasso;
+import com.squareup.picasso.Transformation;
 
 import java.io.BufferedInputStream;
 import java.io.InputStream;
@@ -43,10 +44,7 @@ import io.swagger.client.ApiException;
 import io.swagger.client.api.FilmsApi;
 
 public class MainActivity extends AppCompatActivity {
-    
-    private static final List<Map<String, String>> _cardList = new ArrayList<>();
-    private boolean isRus;
-    private MaterialToolbar customToolBar;
+
     
     //region 'Типы'
     
@@ -169,20 +167,19 @@ public class MainActivity extends AppCompatActivity {
                     var imgView = ((ImageView)listItem.findViewById(R.id.poster_preview));
                     Picasso.get().load(Uri.parse(cardData.get(Constants.ADAPTER_POSTER_PREVIEW_URL))).into(imgView);
                     cardsContainer.addView(listItem);
-                    listItem.setOnClickListener(v -> {
-                        var switchActivityIntent = new Intent(getApplicationContext(), CardActivity.class);
-                        switchActivityIntent.putExtra(Constants.ADAPTER_TITLE, title);
-                        switchActivityIntent.putExtra(Constants.ADAPTER_FILM_ID, id);
-                        startActivity(switchActivityIntent);
-                    });
+                    listItem.setOnClickListener(v -> showFilmCardActivity(id, title));
                 }
             }
         }
     }
     
     //endregion 'Типы'
-
     
+    
+    
+    private static final List<Map<String, String>> _cardList = new ArrayList<>();
+    private boolean isRus;
+    private MaterialToolbar customToolBar;
     
     private ProgressBar progBar;
     
@@ -192,6 +189,8 @@ public class MainActivity extends AppCompatActivity {
     private AsyncTask<String, Void, Void> downloadTask;
     private TextInputEditText txtQuery;
     private View androidContentView;
+    
+    
     
     @Override
     protected void onCreate(Bundle savedInstanceState)
@@ -205,8 +204,7 @@ public class MainActivity extends AppCompatActivity {
         progBar.setVisibility(View.INVISIBLE);
         txtQuery = findViewById(R.id.txt_input);
         this.initViews();
-        FilmsApiHelper.initFilmsApi();
-        showPopular();
+        showPopularFilmsAsync();
         Log.w(Constants.LOG_TAG, "end of onCreate function");
     }
 
@@ -217,7 +215,6 @@ public class MainActivity extends AppCompatActivity {
     {
         customToolBar = findViewById(R.id.top_toolbar);
         this.setSupportActionBar(customToolBar);
-        final ListView lvCards = findViewById(R.id.card_list);
         txtQuery.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_DONE)
             {
@@ -261,7 +258,7 @@ public class MainActivity extends AppCompatActivity {
         {
             downloadTask.cancel(true);
         }
-        downloadTask = new WebDataDownloadTask(FilmsApiHelper.filmsApi).execute(request);
+        downloadTask = new WebDataDownloadTask(FilmsApiHelper.getFilmsApi()).execute(request);
     }
 
     @Override
@@ -279,13 +276,13 @@ public class MainActivity extends AppCompatActivity {
             case R.id.action_switch_to_favorites:
             {
                 Log.d(Constants.LOG_TAG, String.format("Команда меню \"%s\"", item.getTitle()));
-                showFavourites();
+                showFavouriteFilms();
                 break;
             }
             case R.id.action_switch_to_popular:
             {
                 Log.d(Constants.LOG_TAG, String.format("Команда меню \"%s\"", item.getTitle()));
-                showPopular();
+                showPopularFilmsAsync();
                 break;
             }
             default:
@@ -297,14 +294,20 @@ public class MainActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
     
-    private void showPopular()
+    /**
+     * Метод показа ТОП-100 популярных фильмов
+     */
+    private void showPopularFilmsAsync()
     {
         clearLists();
         customToolBar.setTitle(R.string.action_popular_title);
         this.getTopFilmsAsync();
     }
     
-    private void showFavourites()
+    /**
+     * Заготовка метода показа Избранных фильмов
+     */
+    private void showFavouriteFilms()
     {
         clearLists();
         customToolBar.setTitle(R.string.action_favourites_title);
@@ -315,5 +318,20 @@ public class MainActivity extends AppCompatActivity {
         _cardList.clear();
         LinearLayout ll = findViewById(R.id.card_linear_lyaout);
         ll.removeAllViews();
+    }
+    
+    /**
+     * Метод октрытия окна деталей о фильме
+     *
+     * @param kinoApiFilmId
+     * @param cardTitle Желаемый заголовок карточки
+     */
+    @NonNull
+    private void showFilmCardActivity(String kinoApiFilmId, String cardTitle)
+    {
+        var switchActivityIntent = new Intent(getApplicationContext(), CardActivity.class);
+        switchActivityIntent.putExtra(Constants.ADAPTER_TITLE, cardTitle);
+        switchActivityIntent.putExtra(Constants.ADAPTER_FILM_ID, kinoApiFilmId);
+        startActivity(switchActivityIntent);
     }
 }

@@ -4,4 +4,5 @@
     <string name="action_popular_title">Популярное</string>
     <string name="request_hint">Извините, я вас не понял</string>
     <string name="repeat_button_caption">Повторить</string>
+    <string name="filmposter_image_alt_text">Здесь должен быть постер</string>
 </resources>
