@@ -4,4 +4,5 @@
     <string name="action_popular_title">Popular</string>
     <string name="request_hint">Sorry, I can\'t understand you</string>
     <string name="repeat_button_caption">Repeat</string>
+    <string name="filmposter_image_alt_text">FilmPoster</string>
 </resources>
