@@ -17,15 +17,14 @@ import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.ListView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.textfield.TextInputEditText;
 import com.squareup.picasso.Picasso;
-import com.squareup.picasso.Transformation;
 
 import java.io.BufferedInputStream;
 import java.io.InputStream;
@@ -33,6 +32,8 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.util.AbstractMap;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -44,11 +45,12 @@ import io.swagger.client.ApiException;
 import io.swagger.client.api.FilmsApi;
 
 public class MainActivity extends AppCompatActivity {
+    
 
     
     //region 'Типы'
     
-    private class WebDataDownloadTask extends AsyncTask<String, Void, Void>
+    private class WebDataDownloadTask extends AsyncTask<Void, Void, Void>
     {
         private final FilmsApi filmsApi;
         private Map.Entry<Exception, String> error;
@@ -96,7 +98,7 @@ public class MainActivity extends AppCompatActivity {
         }
         
         @Override
-        protected Void doInBackground(String... request)
+        protected Void doInBackground(Void... unused)
         {
             try
             {
@@ -151,24 +153,7 @@ public class MainActivity extends AppCompatActivity {
             else
             {
                 Log.d(Constants.LOG_TAG, "Загрузка Веб-ресурса завершена успешно");
-                LinearLayout cardsContainer = findViewById(R.id.card_linear_lyaout);
-                var results = new ArrayList<View>();
-    
-                for (int i = 0; i < _cardList.size(); i++)
-                {
-                    LayoutInflater inflater = getLayoutInflater();
-                    var listItem = inflater.inflate(R.layout.list_item, null);
-                    var cardData = _cardList.get(i);
-                    var id = cardData.get(Constants.ADAPTER_FILM_ID);
-                    ((TextView)listItem.findViewById(R.id.film_id_holder)).setText(id);
-                    var title = cardData.get(Constants.ADAPTER_TITLE);
-                    ((TextView)listItem.findViewById(R.id.card_title)).setText(title);
-                    ((TextView)listItem.findViewById(R.id.card_content)).setText(cardData.get(Constants.ADAPTER_CONTENT));
-                    var imgView = ((ImageView)listItem.findViewById(R.id.poster_preview));
-                    Picasso.get().load(Uri.parse(cardData.get(Constants.ADAPTER_POSTER_PREVIEW_URL))).into(imgView);
-                    cardsContainer.addView(listItem);
-                    listItem.setOnClickListener(v -> showFilmCardActivity(id, title));
-                }
+                fillFilmListUI();
             }
         }
     }
@@ -177,6 +162,7 @@ public class MainActivity extends AppCompatActivity {
     
     
     
+    //region 'Поля и константы'
     private static final List<Map<String, String>> _cardList = new ArrayList<>();
     private boolean isRus;
     private MaterialToolbar customToolBar;
@@ -186,81 +172,91 @@ public class MainActivity extends AppCompatActivity {
     /**
      * Обязательно пересоздавать задачу перед каждым вызовом!
      */
-    private AsyncTask<String, Void, Void> downloadTask;
+    private AsyncTask<Void, Void, Void> downloadTask;
     private TextInputEditText txtQuery;
     private View androidContentView;
+    private LinearLayout cardsContainer;
+    
+    //endregion 'Поля и константы'
+    
+//    @ContentView
+//    public MainActivity(@LayoutRes int id)
+//    {}
     
     
+    //region 'Обработчики событий'
     
     @Override
     protected void onCreate(Bundle savedInstanceState)
     {
-        Log.w(Constants.LOG_TAG, "start of onCreate function");
         super.onCreate(savedInstanceState);
+        Log.w(Constants.LOG_TAG, "start of onCreate function");
         setContentView(R.layout.activity_main);
         isRus = Locale.getDefault().getLanguage().equalsIgnoreCase("ru");
+        
         androidContentView = findViewById(android.R.id.content);
         progBar = findViewById(R.id.progress_bar);
-        progBar.setVisibility(View.INVISIBLE);
+        progBar.setVisibility(View.GONE);
         txtQuery = findViewById(R.id.txt_input);
+        cardsContainer = findViewById(R.id.card_linear_lyaout);
+        
         this.initViews();
+        
         showPopularFilmsAsync();
         Log.w(Constants.LOG_TAG, "end of onCreate function");
     }
-
-    /**
-     * Метод настройки виджетов
-     */
-    private void initViews()
+    
+    @Override
+    protected void onDestroy()
     {
-        customToolBar = findViewById(R.id.top_toolbar);
-        this.setSupportActionBar(customToolBar);
-        txtQuery.setOnEditorActionListener((v, actionId, event) -> {
-            if (actionId == EditorInfo.IME_ACTION_DONE)
-            {
-                clearLists();
-                var text  = Objects.requireNonNull(txtQuery.getText()).toString().replace("null", "");
-                getTopFilmsAsync(text);
-                return false;
-            }
-            return true;
-        });
+        super.onDestroy();
+    }
+    
+    @Override
+    protected void onStart()
+    {
+        super.onStart();
     }
     
     /**
-     * Метод отображения всплывющей подсказки
+     * @apiNote Почему-то не вызывается?!
+     * @param savedInstanceState the data most recently supplied in {@link #onSaveInstanceState}.
      */
-    private void showSnackBar(String message)
+    @Override
+    protected void onRestoreInstanceState(@NonNull Bundle savedInstanceState)
     {
-        var popup = Snackbar.make(this.androidContentView, message, Snackbar.LENGTH_INDEFINITE);
-        txtQuery.setEnabled(false);
-        popup.setAction(R.string.repeat_button_caption, view -> {
-            var text  = Objects.requireNonNull(txtQuery.getText()).toString().replace("null", "");
-            this.getTopFilmsAsync(text);
-            popup.dismiss();
-            txtQuery.setEnabled(true);
-        });
-        popup.show();
-    }
-    
-    private void getTopFilmsAsync()
-    {
-        getTopFilmsAsync("");
-    }
-    /**
-     * Получает данные по топ 100 фильмов (первые 20 записей) или по конкретному фильму (если request не пуст)
-     *
-     * @param request - ИД фильма, инфу по которому нужно получить
-     */
-    private void getTopFilmsAsync(String request)
-    {
-        if (downloadTask != null && !downloadTask.isCancelled() && (downloadTask.getStatus() == AsyncTask.Status.RUNNING))
+        for (var filmEntry : savedInstanceState.getStringArrayList("FILM_LIST"))
         {
-            downloadTask.cancel(true);
+            final var entryMap = new HashMap<String, String>();
+            String[] split = filmEntry.split("=");
+            for (int i = 0; i < split.length; i++)
+            {
+                entryMap.put(split[i], split[++i]);
+            }
+            _cardList.add(entryMap);
         }
-        downloadTask = new WebDataDownloadTask(FilmsApiHelper.getFilmsApi()).execute(request);
+        super.onRestoreInstanceState(savedInstanceState);
     }
-
+    
+    /**
+     * Обработчик сохранения скачанных данных
+     * @param outState Bundle in which to place your saved state.
+     */
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState)
+    {
+        super.onSaveInstanceState(outState);
+        final ArrayList<String> cardsData = new ArrayList<>(_cardList.size());
+        for (var filmItem : _cardList)
+        {
+            cardsData.addAll(filmItem.entrySet().stream()
+                    .map(x -> x.getKey() + "=" + x.getValue())
+                    .collect(Collectors.toList()));
+        }
+        outState.putStringArrayList("FILM_LIST", cardsData);
+    }
+    
+    
     @Override
     public boolean onCreateOptionsMenu(Menu menu)
     {
@@ -294,6 +290,82 @@ public class MainActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
     
+    //endregion 'Обработчики'
+    
+    
+    
+    //region 'Методы'
+    
+    /**
+     * Метод настройки виджетов
+     */
+    private void initViews()
+    {
+        customToolBar = findViewById(R.id.top_toolbar);
+        this.setSupportActionBar(customToolBar);
+        txtQuery.setOnEditorActionListener((v, actionId, event) -> {
+            if (actionId == EditorInfo.IME_ACTION_DONE)
+            {
+                clearLists();
+                getTopFilmsAsync();
+                return false;
+            }
+            return true;
+        });
+    }
+    
+    /**
+     * Метод заполнения списка фильмов н основе сохранённых данных из {@link #_cardList}
+     */
+    private void fillFilmListUI()
+    {
+        var results = new ArrayList<View>();
+        LayoutInflater inflater = getLayoutInflater();
+        for (int i = 0; i < _cardList.size(); i++)
+        {
+            final var listItem = inflater.inflate(R.layout.list_item, null);
+            final var cardData = _cardList.get(i);
+            final var id = cardData.get(Constants.ADAPTER_FILM_ID);
+            final var idField = ((TextView)listItem.findViewById(R.id.film_id_holder));
+            idField.setText(id);
+            final var title = cardData.get(Constants.ADAPTER_TITLE);
+            ((TextView)listItem.findViewById(R.id.card_title)).setText(title);
+            ((TextView)listItem.findViewById(R.id.card_content)).setText(cardData.get(Constants.ADAPTER_CONTENT));
+            final var imgView = ((ImageView)listItem.findViewById(R.id.poster_preview));
+            Picasso.get().load(Uri.parse(cardData.get(Constants.ADAPTER_POSTER_PREVIEW_URL))).into(imgView);
+            cardsContainer.addView(listItem);
+            listItem.setOnClickListener(v -> showFilmCardActivity(id, title));
+        }
+    }
+    
+    /**
+     * Метод отображения всплывющей подсказки
+     */
+    private void showSnackBar(String message)
+    {
+        var popup = Snackbar.make(this.androidContentView, message, Snackbar.LENGTH_INDEFINITE);
+        txtQuery.setEnabled(false);
+        popup.setAction(R.string.repeat_button_caption, view -> {
+            var text  = Objects.requireNonNull(txtQuery.getText()).toString().replace("null", "");
+            this.getTopFilmsAsync();
+            popup.dismiss();
+            txtQuery.setEnabled(true);
+        });
+        popup.show();
+    }
+    
+    /**
+     * Получает данные по топ 100 фильмов (первые 20 записей) или по конкретному фильму (если request не пуст)
+     */
+    private void getTopFilmsAsync()
+    {
+        if (downloadTask != null && !downloadTask.isCancelled() && (downloadTask.getStatus() == AsyncTask.Status.RUNNING))
+        {
+            downloadTask.cancel(true);
+        }
+        downloadTask = new WebDataDownloadTask(FilmsApiHelper.getFilmsApi()).execute();
+    }
+    
     /**
      * Метод показа ТОП-100 популярных фильмов
      */
@@ -323,7 +395,7 @@ public class MainActivity extends AppCompatActivity {
     /**
      * Метод октрытия окна деталей о фильме
      *
-     * @param kinoApiFilmId
+     * @param kinoApiFilmId ИД фильма в API кинопоиска
      * @param cardTitle Желаемый заголовок карточки
      */
     @NonNull
@@ -334,4 +406,7 @@ public class MainActivity extends AppCompatActivity {
         switchActivityIntent.putExtra(Constants.ADAPTER_FILM_ID, kinoApiFilmId);
         startActivity(switchActivityIntent);
     }
+    
+    //endregion 'Методы'
+    
 }

@@ -23,6 +23,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 import io.swagger.client.ApiException;
+import io.swagger.client.StringUtil;
 import io.swagger.client.api.FilmsApi;
 
 public class CardActivity extends AppCompatActivity
@@ -71,10 +72,11 @@ public class CardActivity extends AppCompatActivity
             {
                 var response = filmsApi.apiV22FilmsIdGet(Integer.parseInt(filmId));
                 _cardData.put(Constants.ADAPTER_TITLE, response.getNameRu());
-                var res = response.getDescription() + "\n\n Жанры: " + response.getGenres().stream().map(
-                        genre -> genre.getGenre() + ", ").collect(Collectors.joining()) +
-                        "\n\n Страны: " + response.getCountries().stream().map(country ->
-                                country.getCountry() + ", ").collect(Collectors.joining());
+                final var geners = "\n\n Жанры: " + response.getGenres().stream().map(
+                        g -> g.getGenre() + ", ").collect(Collectors.joining()).replaceFirst(",\\s*$", "");
+                final var countries = "\n\n Страны: " + response.getCountries().stream().map(country ->
+                        country.getCountry() + ", ").collect(Collectors.joining()).replaceFirst(",\\s*$", "");
+                final var res = response.getDescription() + geners + countries;
                 _cardData.put(Constants.ADAPTER_CONTENT, res);
                 _cardData.put(Constants.ADAPTER_POSTER_PREVIEW_URL, response.getPosterUrl());
             }
