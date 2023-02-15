@@ -28,6 +28,8 @@ import io.swagger.client.api.FilmsApi;
 
 public class CardActivity extends AppCompatActivity
 {
+    
+    //region 'Поля и константы'
     private static final Map<String, String> _cardData = new HashMap<>();
     private ImageView imgPoster;
     private String filmId;
@@ -36,6 +38,8 @@ public class CardActivity extends AppCompatActivity
     private TextView txtHeader;
     private TextView txtContent;
     private View androidContentView;
+    
+    //endregion 'Поля и константы'
     
     
     
@@ -70,12 +74,15 @@ public class CardActivity extends AppCompatActivity
         {
             try
             {
-                var response = filmsApi.apiV22FilmsIdGet(Integer.parseInt(filmId));
+                final var response = filmsApi.apiV22FilmsIdGet(Integer.parseInt(filmId));
                 _cardData.put(Constants.ADAPTER_TITLE, response.getNameRu());
-                final var geners = "\n\n Жанры: " + response.getGenres().stream().map(
-                        g -> g.getGenre() + ", ").collect(Collectors.joining()).replaceFirst(",\\s*$", "");
-                final var countries = "\n\n Страны: " + response.getCountries().stream().map(country ->
-                        country.getCountry() + ", ").collect(Collectors.joining()).replaceFirst(",\\s*$", "");
+                final var geners = "\n\n Жанры: " + response.getGenres().stream()
+                        .map(g -> g.getGenre() + ", ")
+                        .collect(Collectors.joining())
+                        .replaceFirst(",\\s*$", "");
+                final var countries = "\n\n Страны: " + response.getCountries().stream()
+                        .map(country -> country.getCountry() + ", ")
+                        .collect(Collectors.joining()).replaceFirst(",\\s*$", "");
                 final var res = response.getDescription() + geners + countries;
                 _cardData.put(Constants.ADAPTER_CONTENT, res);
                 _cardData.put(Constants.ADAPTER_POSTER_PREVIEW_URL, response.getPosterUrl());
@@ -86,11 +93,11 @@ public class CardActivity extends AppCompatActivity
                 error = new AbstractMap.SimpleEntry<>(ex, mes);
                 if (ex instanceof ApiException)
                 {
-                    var apiEx = (ApiException)ex;
-                    var headers = apiEx.getResponseHeaders();
-                    var headersText = headers == null ? "" : headers.entrySet().stream().map(
-                            entry -> entry.getKey() + ": " + String.join(" \n", entry.getValue())
-                    ).collect(Collectors.joining());
+                    final var apiEx = (ApiException)ex;
+                    final var headers = apiEx.getResponseHeaders();
+                    final var headersText = headers == null ? "" : headers.entrySet().stream()
+                            .map(entry -> entry.getKey() + ": " + String.join(" \n", entry.getValue()))
+                            .collect(Collectors.joining());
                     mes += String.format(Locale.ROOT, " %s (ErrorCode: %d), ResponseHeaders: \n%s\n ResponseBody: \n%s\n",
                             Constants.KINO_API_ERROR_MES, apiEx.getCode(), headersText, apiEx.getResponseBody());
                 }
@@ -99,8 +106,12 @@ public class CardActivity extends AppCompatActivity
             return null;
         }
     
-    
-       @Override
+        /**
+         * @apiNote Этот метод выполняется в потоке интерфейса
+         *
+         * @param unused The result of the operation computed by {@link #doInBackground}.
+         */
+        @Override
         protected void onPostExecute(Void unused)
         {
             super.onPostExecute(unused);
@@ -108,7 +119,7 @@ public class CardActivity extends AppCompatActivity
             progBar.setVisibility(View.GONE);
             if (downloadTask.getError() != null)
             {
-                var mes = downloadTask.getError().getValue();
+                final var mes = downloadTask.getError().getValue();
                 showSnackBar(Constants.UNKNOWN_WEB_ERROR_MES);
             }
             else
@@ -129,7 +140,7 @@ public class CardActivity extends AppCompatActivity
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_card);
         
-        MaterialToolbar customToolBar = findViewById(R.id.top_tool_bar);
+        final MaterialToolbar customToolBar = findViewById(R.id.top_tool_bar);
         customToolBar.setTitle(getIntent().getStringExtra(Constants.ADAPTER_TITLE));
         this.setSupportActionBar(customToolBar);
         Objects.requireNonNull(getSupportActionBar()).setDisplayHomeAsUpEnabled(true);
@@ -143,6 +154,10 @@ public class CardActivity extends AppCompatActivity
         filmId = getIntent().getStringExtra(Constants.ADAPTER_FILM_ID);
         getFilmDataAsync();
     }
+    
+    
+    
+    //region 'Методы'
     
     /**
      * Метод заполнения UI карточки фильма из скачанных данных
@@ -177,4 +192,7 @@ public class CardActivity extends AppCompatActivity
         }
         downloadTask = (WebDataDownloadTask)new WebDataDownloadTask(FilmsApiHelper.getFilmsApi()).execute();
     }
+    
+    //endregion 'Методы'
+    
 }

@@ -12,4 +12,9 @@
         android:icon="@drawable/baseline_favorite_24"
         android:title="@string/action_popular_title"
         app:showAsAction="ifRoom" />
+    <item
+        android:id="@+id/action_refresh"
+        android:icon="@android:drawable/ic_menu_rotate"
+        android:title="@string/action_refresh_title"
+        app:showAsAction="never"/>
 </menu>

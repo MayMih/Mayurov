@@ -2,7 +2,8 @@
     <string name="app_name" translatable="false">TinkoffKinoLab</string>
     <string name="action_favourites_title">Favourites</string>
     <string name="action_popular_title">Popular</string>
-    <string name="request_hint">Sorry, I can\'t understand you</string>
+    <string name="request_prompt">Enter film title here</string>
     <string name="repeat_button_caption">Repeat</string>
     <string name="filmposter_image_alt_text">FilmPoster</string>
+    <string name="action_refresh_title">Refrersh</string>
 </resources>

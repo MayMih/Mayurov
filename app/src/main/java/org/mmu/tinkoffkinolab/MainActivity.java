@@ -2,11 +2,11 @@ package org.mmu.tinkoffkinolab;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
@@ -19,7 +19,6 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.snackbar.Snackbar;
@@ -32,7 +31,6 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.util.AbstractMap;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -43,12 +41,20 @@ import java.util.stream.Collectors;
 
 import io.swagger.client.ApiException;
 import io.swagger.client.api.FilmsApi;
+import jp.wasabeef.picasso.transformations.RoundedCornersTransformation;
 
 public class MainActivity extends AppCompatActivity {
     
 
     
     //region 'Типы'
+    
+    private enum ViewMode
+    {
+        NONE,
+        FAVOURITES,
+        POPULAR
+    }
     
     private class WebDataDownloadTask extends AsyncTask<Void, Void, Void>
     {
@@ -176,6 +182,7 @@ public class MainActivity extends AppCompatActivity {
     private TextInputEditText txtQuery;
     private View androidContentView;
     private LinearLayout cardsContainer;
+    private ViewMode currentViewMode;
     
     //endregion 'Поля и константы'
     
@@ -184,8 +191,16 @@ public class MainActivity extends AppCompatActivity {
 //    {}
     
     
-    //region 'Обработчики событий'
+    //region 'Обработчики'
     
+    /**
+     * При создании Экрана навешиваем обработчик обновления списка свайпом
+     *
+     * @param savedInstanceState If the activity is being re-initialized after
+     *     previously being shut down then this Bundle contains the data it most
+     *     recently supplied in {@link #onSaveInstanceState}.  <b><i>Note: Otherwise it is null.</i></b>
+     *
+     */
     @Override
     protected void onCreate(Bundle savedInstanceState)
     {
@@ -199,7 +214,17 @@ public class MainActivity extends AppCompatActivity {
         progBar.setVisibility(View.GONE);
         txtQuery = findViewById(R.id.txt_input);
         cardsContainer = findViewById(R.id.card_linear_lyaout);
-        
+        final SwipeRefreshLayout swr = findViewById(R.id.film_list_swipe_refresh_container);
+        swr.setOnRefreshListener(() -> {
+            try
+            {
+                refeshUIContent();
+            }
+            finally
+            {
+                swr.setRefreshing(false);
+            }
+        });
         this.initViews();
         
         showPopularFilmsAsync();
@@ -267,18 +292,22 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item)
     {
+        Log.d(Constants.LOG_TAG, String.format("Команда меню \"%s\"", item.getTitle()));
         switch (item.getItemId())
         {
             case R.id.action_switch_to_favorites:
             {
-                Log.d(Constants.LOG_TAG, String.format("Команда меню \"%s\"", item.getTitle()));
                 showFavouriteFilms();
                 break;
             }
             case R.id.action_switch_to_popular:
             {
-                Log.d(Constants.LOG_TAG, String.format("Команда меню \"%s\"", item.getTitle()));
                 showPopularFilmsAsync();
+                break;
+            }
+            case R.id.action_refresh:
+            {
+                refeshUIContent();
                 break;
             }
             default:
@@ -314,12 +343,24 @@ public class MainActivity extends AppCompatActivity {
         });
     }
     
+    private void refeshUIContent()
+    {
+        if (this.currentViewMode == ViewMode.POPULAR)
+        {
+            showPopularFilmsAsync();
+        }
+        else if (this.currentViewMode == ViewMode.FAVOURITES)
+        {
+            showFavouriteFilms();
+        }
+    }
+    
     /**
      * Метод заполнения списка фильмов н основе сохранённых данных из {@link #_cardList}
      */
     private void fillFilmListUI()
     {
-        var results = new ArrayList<View>();
+        final var results = new ArrayList<View>();
         LayoutInflater inflater = getLayoutInflater();
         for (int i = 0; i < _cardList.size(); i++)
         {
@@ -332,7 +373,8 @@ public class MainActivity extends AppCompatActivity {
             ((TextView)listItem.findViewById(R.id.card_title)).setText(title);
             ((TextView)listItem.findViewById(R.id.card_content)).setText(cardData.get(Constants.ADAPTER_CONTENT));
             final var imgView = ((ImageView)listItem.findViewById(R.id.poster_preview));
-            Picasso.get().load(Uri.parse(cardData.get(Constants.ADAPTER_POSTER_PREVIEW_URL))).into(imgView);
+            final var imageUrl = cardData.get(Constants.ADAPTER_POSTER_PREVIEW_URL);
+            Picasso.get().load(imageUrl).transform(new RoundedCornersTransformation(30, 10)).into(imgView);
             cardsContainer.addView(listItem);
             listItem.setOnClickListener(v -> showFilmCardActivity(id, title));
         }
@@ -371,6 +413,7 @@ public class MainActivity extends AppCompatActivity {
      */
     private void showPopularFilmsAsync()
     {
+        currentViewMode = ViewMode.POPULAR;
         clearLists();
         customToolBar.setTitle(R.string.action_popular_title);
         this.getTopFilmsAsync();
@@ -381,6 +424,7 @@ public class MainActivity extends AppCompatActivity {
      */
     private void showFavouriteFilms()
     {
+        currentViewMode = ViewMode.FAVOURITES;
         clearLists();
         customToolBar.setTitle(R.string.action_favourites_title);
     }
