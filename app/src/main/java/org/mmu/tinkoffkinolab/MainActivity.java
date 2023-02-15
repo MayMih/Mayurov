@@ -45,7 +45,6 @@ import jp.wasabeef.picasso.transformations.RoundedCornersTransformation;
 
 public class MainActivity extends AppCompatActivity {
     
-
     
     //region 'Типы'
     
@@ -149,15 +148,14 @@ public class MainActivity extends AppCompatActivity {
             progBar.setVisibility(View.GONE);
             if (error != null)
             {
-                var mes = error.getValue();
-                showSnackBar(UNKNOWN_WEB_ERROR_MES);
-                if (!mes.isBlank())
-                {
-                    txtQuery.setError(mes);
-                }
+                _lastSnackBar = showSnackBar(UNKNOWN_WEB_ERROR_MES);
             }
             else
             {
+                if (_lastSnackBar != null && _lastSnackBar.isShown())
+                {
+                    _lastSnackBar.dismiss();
+                }
                 Log.d(Constants.LOG_TAG, "Загрузка Веб-ресурса завершена успешно");
                 fillFilmListUI();
             }
@@ -172,7 +170,7 @@ public class MainActivity extends AppCompatActivity {
     private static final List<Map<String, String>> _cardList = new ArrayList<>();
     private boolean isRus;
     private MaterialToolbar customToolBar;
-    
+    private Snackbar _lastSnackBar;
     private ProgressBar progBar;
     
     /**
@@ -229,18 +227,6 @@ public class MainActivity extends AppCompatActivity {
         
         showPopularFilmsAsync();
         Log.w(Constants.LOG_TAG, "end of onCreate function");
-    }
-    
-    @Override
-    protected void onDestroy()
-    {
-        super.onDestroy();
-    }
-    
-    @Override
-    protected void onStart()
-    {
-        super.onStart();
     }
     
     /**
@@ -335,7 +321,6 @@ public class MainActivity extends AppCompatActivity {
         txtQuery.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_DONE)
             {
-                clearLists();
                 getTopFilmsAsync();
                 return false;
             }
@@ -383,7 +368,7 @@ public class MainActivity extends AppCompatActivity {
     /**
      * Метод отображения всплывющей подсказки
      */
-    private void showSnackBar(String message)
+    private Snackbar showSnackBar(String message)
     {
         var popup = Snackbar.make(this.androidContentView, message, Snackbar.LENGTH_INDEFINITE);
         txtQuery.setEnabled(false);
@@ -394,6 +379,7 @@ public class MainActivity extends AppCompatActivity {
             txtQuery.setEnabled(true);
         });
         popup.show();
+        return popup;
     }
     
     /**
