@@ -5,4 +5,5 @@
     <string name="request_prompt">Введите название фильма</string>
     <string name="repeat_button_caption">Повторить</string>
     <string name="filmposter_image_alt_text">Здесь должен быть постер</string>
+    <string name="action_refresh_title">Обновить</string>
 </resources>

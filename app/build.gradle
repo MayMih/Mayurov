@@ -46,5 +46,6 @@ dependencies {
     implementation 'androidx.databinding:databinding-common:7.4.1'
     implementation 'com.squareup.picasso:picasso:2.71828'
     implementation 'jp.wasabeef:picasso-transformations:2.4.0'
+    implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
     debugImplementation files('libs\\swagger-java-client-1.0.0-sources.jar')
 }

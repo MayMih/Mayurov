@@ -2,6 +2,7 @@ package org.mmu.tinkoffkinolab;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import android.content.Intent;
 import android.graphics.Bitmap;
@@ -47,6 +48,13 @@ public class MainActivity extends AppCompatActivity {
 
     
     //region 'Типы'
+    
+    private enum ViewMode
+    {
+        NONE,
+        FAVOURITES,
+        POPULAR
+    }
     
     private class WebDataDownloadTask extends AsyncTask<Void, Void, Void>
     {
@@ -174,6 +182,7 @@ public class MainActivity extends AppCompatActivity {
     private TextInputEditText txtQuery;
     private View androidContentView;
     private LinearLayout cardsContainer;
+    private ViewMode currentViewMode;
     
     //endregion 'Поля и константы'
     
@@ -182,8 +191,16 @@ public class MainActivity extends AppCompatActivity {
 //    {}
     
     
-    //region 'Обработчики событий'
+    //region 'Обработчики'
     
+    /**
+     * При создании Экрана навешиваем обработчик обновления списка свайпом
+     *
+     * @param savedInstanceState If the activity is being re-initialized after
+     *     previously being shut down then this Bundle contains the data it most
+     *     recently supplied in {@link #onSaveInstanceState}.  <b><i>Note: Otherwise it is null.</i></b>
+     *
+     */
     @Override
     protected void onCreate(Bundle savedInstanceState)
     {
@@ -197,7 +214,17 @@ public class MainActivity extends AppCompatActivity {
         progBar.setVisibility(View.GONE);
         txtQuery = findViewById(R.id.txt_input);
         cardsContainer = findViewById(R.id.card_linear_lyaout);
-        
+        final SwipeRefreshLayout swr = findViewById(R.id.film_list_swipe_refresh_container);
+        swr.setOnRefreshListener(() -> {
+            try
+            {
+                refeshUIContent();
+            }
+            finally
+            {
+                swr.setRefreshing(false);
+            }
+        });
         this.initViews();
         
         showPopularFilmsAsync();
@@ -265,18 +292,22 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item)
     {
+        Log.d(Constants.LOG_TAG, String.format("Команда меню \"%s\"", item.getTitle()));
         switch (item.getItemId())
         {
             case R.id.action_switch_to_favorites:
             {
-                Log.d(Constants.LOG_TAG, String.format("Команда меню \"%s\"", item.getTitle()));
                 showFavouriteFilms();
                 break;
             }
             case R.id.action_switch_to_popular:
             {
-                Log.d(Constants.LOG_TAG, String.format("Команда меню \"%s\"", item.getTitle()));
                 showPopularFilmsAsync();
+                break;
+            }
+            case R.id.action_refresh:
+            {
+                refeshUIContent();
                 break;
             }
             default:
@@ -310,6 +341,18 @@ public class MainActivity extends AppCompatActivity {
             }
             return true;
         });
+    }
+    
+    private void refeshUIContent()
+    {
+        if (this.currentViewMode == ViewMode.POPULAR)
+        {
+            showPopularFilmsAsync();
+        }
+        else if (this.currentViewMode == ViewMode.FAVOURITES)
+        {
+            showFavouriteFilms();
+        }
     }
     
     /**
@@ -370,6 +413,7 @@ public class MainActivity extends AppCompatActivity {
      */
     private void showPopularFilmsAsync()
     {
+        currentViewMode = ViewMode.POPULAR;
         clearLists();
         customToolBar.setTitle(R.string.action_popular_title);
         this.getTopFilmsAsync();
@@ -380,6 +424,7 @@ public class MainActivity extends AppCompatActivity {
      */
     private void showFavouriteFilms()
     {
+        currentViewMode = ViewMode.FAVOURITES;
         clearLists();
         customToolBar.setTitle(R.string.action_favourites_title);
     }

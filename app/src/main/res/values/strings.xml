@@ -5,4 +5,5 @@
     <string name="request_prompt">Enter film title here</string>
     <string name="repeat_button_caption">Repeat</string>
     <string name="filmposter_image_alt_text">FilmPoster</string>
+    <string name="action_refresh_title">Refrersh</string>
 </resources>
