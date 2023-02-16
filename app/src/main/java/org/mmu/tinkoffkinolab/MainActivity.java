@@ -2,11 +2,10 @@ package org.mmu.tinkoffkinolab;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.cardview.widget.CardView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import android.content.Intent;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
@@ -27,10 +26,6 @@ import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.textfield.TextInputEditText;
 import com.squareup.picasso.Picasso;
 
-import java.io.BufferedInputStream;
-import java.io.InputStream;
-import java.net.URL;
-import java.net.URLConnection;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -46,8 +41,7 @@ import io.swagger.client.api.FilmsApi;
 import jp.wasabeef.picasso.transformations.RoundedCornersTransformation;
 
 public class MainActivity extends AppCompatActivity {
-    private LayoutInflater layoutInflater;
-    
+   
     
     //region 'Типы'
     
@@ -174,6 +168,7 @@ public class MainActivity extends AppCompatActivity {
     private View androidContentView;
     private LinearLayout cardsContainer;
     private ViewMode _currentViewMode;
+    private LayoutInflater _layoutInflater;
     
     //endregion 'Поля и константы'
     
@@ -197,7 +192,7 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         isRus = Locale.getDefault().getLanguage().equalsIgnoreCase("ru");
     
-        layoutInflater = getLayoutInflater();
+        _layoutInflater = getLayoutInflater();
         androidContentView = findViewById(android.R.id.content);
         progBar = findViewById(R.id.progress_bar);
         progBar.setVisibility(View.GONE);
@@ -327,8 +322,17 @@ public class MainActivity extends AppCompatActivity {
             boolean isBottomReached = cardsContainer.getBottom() - v.getBottom() - scrollY == 0;
             if (isBottomReached && this._currentViewMode == ViewMode.POPULAR && _currentPageNumber < _topFilmsPagesCount)
             {
-                //Toast.makeText(this,"Загружаю данные, ожидайте...", Toast.LENGTH_SHORT).show();
                 showPopularFilmsAsync(false);
+            }
+            else if (scrollY > 20)
+            {
+                CardView cv = findViewById(R.id.input_panel);
+                cv.setCardElevation(10 * getResources().getDisplayMetrics().density);
+            }
+            else if (scrollY == 0)
+            {
+                CardView cv = findViewById(R.id.input_panel);
+                cv.setCardElevation(0);
             }
         });
     }
@@ -355,7 +359,7 @@ public class MainActivity extends AppCompatActivity {
     {
         for (int i = startItemIndex; i < _cardList.size(); i++)
         {
-            final var listItem = layoutInflater.inflate(R.layout.list_item, null);
+            final var listItem = _layoutInflater.inflate(R.layout.list_item, null);
             final var cardData = _cardList.get(i);
             final var id = cardData.get(Constants.ADAPTER_FILM_ID);
             final var idField = ((TextView)listItem.findViewById(R.id.film_id_holder));
