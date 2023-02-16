@@ -41,7 +41,7 @@ import io.swagger.client.api.FilmsApi;
 import jp.wasabeef.picasso.transformations.RoundedCornersTransformation;
 
 public class MainActivity extends AppCompatActivity {
-   
+    
     
     //region 'Типы'
     
@@ -121,6 +121,7 @@ public class MainActivity extends AppCompatActivity {
         {
             super.onPostExecute(pagesCount);
             progBar.setVisibility(View.GONE);
+            swipeRefreshContainer.setRefreshing(false);
             if (error != null)
             {
                 _lastSnackBar = showErrorSnackBar(UNKNOWN_WEB_ERROR_MES);
@@ -152,6 +153,8 @@ public class MainActivity extends AppCompatActivity {
     private MaterialToolbar customToolBar;
     private Snackbar _lastSnackBar;
     private ProgressBar progBar;
+    private CardView inputPanel;
+    private SwipeRefreshLayout swipeRefreshContainer;
     private Integer _topFilmsPagesCount = 1;
     /**
      * Содержит номер страницы, которая будет запрошена
@@ -199,9 +202,16 @@ public class MainActivity extends AppCompatActivity {
         txtQuery = findViewById(R.id.txt_input);
         cardsContainer = findViewById(R.id.card_linear_lyaout);
         customToolBar = findViewById(R.id.top_toolbar);
+        inputPanel = findViewById(R.id.input_panel);
+        swipeRefreshContainer = findViewById(R.id.film_list_swipe_refresh_container);
+        
         this.setSupportActionBar(customToolBar);
         
         this.setEventHandlers();
+        
+        ScrollView scr = findViewById(R.id.card_scroller);
+        scr.setVerticalScrollBarEnabled(true);
+        //swipeRefreshContainer.
         
         showPopularFilmsAsync(true);
         Log.w(Constants.LOG_TAG, "end of onCreate function");
@@ -295,28 +305,18 @@ public class MainActivity extends AppCompatActivity {
     private void setEventHandlers()
     {
         // обновляем страницу свайпом сверху
-        final SwipeRefreshLayout swr = findViewById(R.id.film_list_swipe_refresh_container);
-        swr.setOnRefreshListener(() -> {
-            try
-            {
-                refeshUIContent();
-            }
-            finally
-            {
-                swr.setRefreshing(false);
-            }
-        });
+        swipeRefreshContainer.setOnRefreshListener(this::refeshUIContent);
         // ищем текст по кнопке ВВОД на клавиатуре
         txtQuery.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_DONE)
             {
-                Toast.makeText(this, "Фильтрация пока не реализована", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Фильтрация ещё не реализована!", Toast.LENGTH_SHORT).show();
                 return false;
             }
             return true;
         });
         // при прокрутке списка фильмов до конца подгружаем следующую страницу результатов (если есть)
-        final ScrollView scroller = findViewById(R.id.card_scroll);
+        final ScrollView scroller = findViewById(R.id.card_scroller);
         scroller.setOnScrollChangeListener((v, scrollX, scrollY, oldScrollX, oldScrollY) ->
         {
             boolean isBottomReached = cardsContainer.getBottom() - v.getBottom() - scrollY == 0;
@@ -326,13 +326,11 @@ public class MainActivity extends AppCompatActivity {
             }
             else if (scrollY > 20)
             {
-                CardView cv = findViewById(R.id.input_panel);
-                cv.setCardElevation(10 * getResources().getDisplayMetrics().density);
+                inputPanel.setCardElevation(10 * getResources().getDisplayMetrics().density);
             }
             else if (scrollY == 0)
             {
-                CardView cv = findViewById(R.id.input_panel);
-                cv.setCardElevation(0);
+                inputPanel.setCardElevation(0);
             }
         });
     }
