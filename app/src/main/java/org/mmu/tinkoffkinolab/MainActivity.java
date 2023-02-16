@@ -18,7 +18,9 @@ import android.view.inputmethod.EditorInfo;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
+import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.snackbar.Snackbar;
@@ -44,6 +46,7 @@ import io.swagger.client.api.FilmsApi;
 import jp.wasabeef.picasso.transformations.RoundedCornersTransformation;
 
 public class MainActivity extends AppCompatActivity {
+    private LayoutInflater layoutInflater;
     
     
     //region 'Типы'
@@ -55,38 +58,14 @@ public class MainActivity extends AppCompatActivity {
         POPULAR
     }
     
-    private class WebDataDownloadTask extends AsyncTask<Void, Void, Void>
+    private class WebDataDownloadTask extends AsyncTask<Integer, Void, Integer>
     {
+        private static final int FILMS_COUNT_PER_PAGE = 20;
         private final FilmsApi filmsApi;
         private Map.Entry<Exception, String> error;
         private static final String UNKNOWN_WEB_ERROR_MES = "Ошибка загрузки данных по сети:";
         private static final String KINO_API_ERROR_MES = "Ошибка API KinoPoisk";
-    
-        /**
-         * Причёсанный код отсюда: <a href="https://stackoverflow.com/a/3681726/2323972">...</a>
-         */
-        private Bitmap downloadImageBitmap(String url)
-        {
-            Bitmap bm = null;
-            try
-            {
-                URL aURL = new URL(url);
-                URLConnection conn = aURL.openConnection();
-                conn.connect();
-                try (InputStream is = conn.getInputStream())
-                {
-                    try (BufferedInputStream bis = new BufferedInputStream(is))
-                    {
-                        bm = BitmapFactory.decodeStream(bis);
-                    }
-                }
-            }
-            catch (Exception e)
-            {
-                Log.e(Constants.LOG_TAG, "Error getting bitmap", e);
-            }
-            return bm;
-        }
+        
         
         public WebDataDownloadTask(FilmsApi engine)
         {
@@ -97,24 +76,26 @@ public class MainActivity extends AppCompatActivity {
         protected void onPreExecute()
         {
             super.onPreExecute();
-            clearLists();
             progBar.setVisibility(View.VISIBLE);
+            progBar.bringToFront();
             Log.d(Constants.LOG_TAG, "Начало загрузки веб-ресурса...");
         }
         
         @Override
-        protected Void doInBackground(Void... unused)
+        protected Integer doInBackground(Integer... pageNumber)
         {
+            int res = 0;
             try
             {
-                var response = filmsApi.apiV22FilmsTopGet(Constants.TopFilmsType.TOP_100_POPULAR_FILMS.name(), 1);
+                final var response = filmsApi.apiV22FilmsTopGet(Constants.TopFilmsType.TOP_100_POPULAR_FILMS.name(), pageNumber[0]);
+                res = response.getPagesCount();
                 for (var filmData : response.getFilms())
                 {
                     if (isCancelled())
                     {
                         return null;
                     }
-                    var id = String.valueOf(filmData.getFilmId());
+                    final var id = String.valueOf(filmData.getFilmId());
                     Optional<String> name = Optional.ofNullable(isRus ? filmData.getNameRu() : filmData.getNameEn());
                     _cardList.add(Map.of(Constants.ADAPTER_TITLE, name.orElse(id),
                             Constants.ADAPTER_CONTENT,filmData.getGenres().get(0).getGenre() + " (" + filmData.getYear() + ")",
@@ -138,26 +119,31 @@ public class MainActivity extends AppCompatActivity {
                 }
                 Log.e(Constants.LOG_TAG, mes.isEmpty() ? UNKNOWN_WEB_ERROR_MES : mes, ex);
             }
-            return null;
+            return res;
         }
-        
+
         @Override
-        protected void onPostExecute(Void unused)
+        protected void onPostExecute(Integer pagesCount)
         {
-            super.onPostExecute(unused);
+            super.onPostExecute(pagesCount);
             progBar.setVisibility(View.GONE);
             if (error != null)
             {
-                _lastSnackBar = showSnackBar(UNKNOWN_WEB_ERROR_MES);
+                _lastSnackBar = showErrorSnackBar(UNKNOWN_WEB_ERROR_MES);
             }
             else
             {
+                Log.d(Constants.LOG_TAG, "Загрузка Веб-ресурса завершена успешно");
+                fillFilmListUI((_currentPageNumber - 1) * FILMS_COUNT_PER_PAGE);
+                _topFilmsPagesCount = pagesCount;
+                if (_currentPageNumber < _topFilmsPagesCount)
+                {
+                    _currentPageNumber++;
+                }
                 if (_lastSnackBar != null && _lastSnackBar.isShown())
                 {
                     _lastSnackBar.dismiss();
                 }
-                Log.d(Constants.LOG_TAG, "Загрузка Веб-ресурса завершена успешно");
-                fillFilmListUI();
             }
         }
     }
@@ -172,22 +158,26 @@ public class MainActivity extends AppCompatActivity {
     private MaterialToolbar customToolBar;
     private Snackbar _lastSnackBar;
     private ProgressBar progBar;
+    private Integer _topFilmsPagesCount = 1;
+    /**
+     * Содержит номер страницы, которая будет запрошена
+     *
+     * @implSpec НЕ изменять - управляется классом {@link WebDataDownloadTask}
+     */
+    private int _currentPageNumber = 1;
     
     /**
      * Обязательно пересоздавать задачу перед каждым вызовом!
      */
-    private AsyncTask<Void, Void, Void> downloadTask;
+    private AsyncTask<Integer, Void, Integer> downloadTask;
     private TextInputEditText txtQuery;
     private View androidContentView;
     private LinearLayout cardsContainer;
-    private ViewMode currentViewMode;
+    private ViewMode _currentViewMode;
     
     //endregion 'Поля и константы'
     
-//    @ContentView
-//    public MainActivity(@LayoutRes int id)
-//    {}
-    
+
     
     //region 'Обработчики'
     
@@ -206,26 +196,19 @@ public class MainActivity extends AppCompatActivity {
         Log.w(Constants.LOG_TAG, "start of onCreate function");
         setContentView(R.layout.activity_main);
         isRus = Locale.getDefault().getLanguage().equalsIgnoreCase("ru");
-        
+    
+        layoutInflater = getLayoutInflater();
         androidContentView = findViewById(android.R.id.content);
         progBar = findViewById(R.id.progress_bar);
         progBar.setVisibility(View.GONE);
         txtQuery = findViewById(R.id.txt_input);
         cardsContainer = findViewById(R.id.card_linear_lyaout);
-        final SwipeRefreshLayout swr = findViewById(R.id.film_list_swipe_refresh_container);
-        swr.setOnRefreshListener(() -> {
-            try
-            {
-                refeshUIContent();
-            }
-            finally
-            {
-                swr.setRefreshing(false);
-            }
-        });
-        this.initViews();
+        customToolBar = findViewById(R.id.top_toolbar);
+        this.setSupportActionBar(customToolBar);
         
-        showPopularFilmsAsync();
+        this.setEventHandlers();
+        
+        showPopularFilmsAsync(true);
         Log.w(Constants.LOG_TAG, "end of onCreate function");
     }
     
@@ -288,7 +271,7 @@ public class MainActivity extends AppCompatActivity {
             }
             case R.id.action_switch_to_popular:
             {
-                showPopularFilmsAsync();
+                showPopularFilmsAsync(true);
                 break;
             }
             case R.id.action_refresh:
@@ -312,44 +295,67 @@ public class MainActivity extends AppCompatActivity {
     //region 'Методы'
     
     /**
-     * Метод настройки виджетов
+     * Метод настройки событий виджетов
      */
-    private void initViews()
+    private void setEventHandlers()
     {
-        customToolBar = findViewById(R.id.top_toolbar);
-        this.setSupportActionBar(customToolBar);
+        // обновляем страницу свайпом сверху
+        final SwipeRefreshLayout swr = findViewById(R.id.film_list_swipe_refresh_container);
+        swr.setOnRefreshListener(() -> {
+            try
+            {
+                refeshUIContent();
+            }
+            finally
+            {
+                swr.setRefreshing(false);
+            }
+        });
+        // ищем текст по кнопке ВВОД на клавиатуре
         txtQuery.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_DONE)
             {
-                getTopFilmsAsync();
+                Toast.makeText(this, "Фильтрация пока не реализована", Toast.LENGTH_SHORT).show();
                 return false;
             }
             return true;
         });
+        // при прокрутке списка фильмов до конца подгружаем следующую страницу результатов (если есть)
+        final ScrollView scroller = findViewById(R.id.card_scroll);
+        scroller.setOnScrollChangeListener((v, scrollX, scrollY, oldScrollX, oldScrollY) ->
+        {
+            boolean isBottomReached = cardsContainer.getBottom() - v.getBottom() - scrollY == 0;
+            if (isBottomReached && this._currentViewMode == ViewMode.POPULAR && _currentPageNumber < _topFilmsPagesCount)
+            {
+                //Toast.makeText(this,"Загружаю данные, ожидайте...", Toast.LENGTH_SHORT).show();
+                showPopularFilmsAsync(false);
+            }
+        });
     }
     
+    /**
+     * Метод перезагрузки содержимого страницы (списка фильмов)
+     */
     private void refeshUIContent()
     {
-        if (this.currentViewMode == ViewMode.POPULAR)
+        if (this._currentViewMode == ViewMode.POPULAR)
         {
-            showPopularFilmsAsync();
+            showPopularFilmsAsync(true);
         }
-        else if (this.currentViewMode == ViewMode.FAVOURITES)
+        else if (this._currentViewMode == ViewMode.FAVOURITES)
         {
             showFavouriteFilms();
         }
     }
     
     /**
-     * Метод заполнения списка фильмов н основе сохранённых данных из {@link #_cardList}
+     * Метод заполнения списка фильмов на основе сохранённых данных из {@link #_cardList}
      */
-    private void fillFilmListUI()
+    private void fillFilmListUI(int startItemIndex)
     {
-        final var results = new ArrayList<View>();
-        LayoutInflater inflater = getLayoutInflater();
-        for (int i = 0; i < _cardList.size(); i++)
+        for (int i = startItemIndex; i < _cardList.size(); i++)
         {
-            final var listItem = inflater.inflate(R.layout.list_item, null);
+            final var listItem = layoutInflater.inflate(R.layout.list_item, null);
             final var cardData = _cardList.get(i);
             final var id = cardData.get(Constants.ADAPTER_FILM_ID);
             final var idField = ((TextView)listItem.findViewById(R.id.film_id_holder));
@@ -366,43 +372,60 @@ public class MainActivity extends AppCompatActivity {
     }
     
     /**
-     * Метод отображения всплывющей подсказки
+     * Метод отображения всплывющей подсказки с сообщением об ошибке и кнопкой "Повторить"
      */
-    private Snackbar showSnackBar(String message)
+    private Snackbar showErrorSnackBar(String message)
     {
         var popup = Snackbar.make(this.androidContentView, message, Snackbar.LENGTH_INDEFINITE);
-        txtQuery.setEnabled(false);
         popup.setAction(R.string.repeat_button_caption, view -> {
             var text  = Objects.requireNonNull(txtQuery.getText()).toString().replace("null", "");
-            this.getTopFilmsAsync();
+            this.startTopFilmsDownloadTask(_currentPageNumber);
             popup.dismiss();
-            txtQuery.setEnabled(true);
         });
         popup.show();
         return popup;
     }
     
     /**
-     * Получает данные по топ 100 фильмов (первые 20 записей) или по конкретному фильму (если request не пуст)
+     * Получает данные топ 100 фильмов (20 записей на страницу)
+     *
+     * @apiNote Если задача уже запущена, то сначала отменяет её и запускает заново!
      */
-    private void getTopFilmsAsync()
+    private void startTopFilmsDownloadTask(int pageNumber)
     {
         if (downloadTask != null && !downloadTask.isCancelled() && (downloadTask.getStatus() == AsyncTask.Status.RUNNING))
         {
-            downloadTask.cancel(true);
+            if (pageNumber > 1)
+            {
+                downloadTask.cancel(true);
+            }
+            else
+            {
+                Toast.makeText(this, "Ожидайте, идёт загрузка...", Toast.LENGTH_SHORT).show();
+                return;
+            }
         }
-        downloadTask = new WebDataDownloadTask(FilmsApiHelper.getFilmsApi()).execute();
+        downloadTask = new WebDataDownloadTask(FilmsApiHelper.getFilmsApi()).execute(pageNumber);
     }
     
     /**
      * Метод показа ТОП-100 популярных фильмов
+     *
+     * @param isClearBeforeShow если True, текущий список очищается и показ начинается с первой страницы
      */
-    private void showPopularFilmsAsync()
+    private void showPopularFilmsAsync(boolean isClearBeforeShow)
     {
-        currentViewMode = ViewMode.POPULAR;
-        clearLists();
-        customToolBar.setTitle(R.string.action_popular_title);
-        this.getTopFilmsAsync();
+        if (isClearBeforeShow)
+        {
+            _currentPageNumber = 1;
+            clearLists();
+        }
+        if (_currentViewMode != ViewMode.POPULAR)
+        {
+            _currentViewMode = ViewMode.POPULAR;
+            customToolBar.setTitle(R.string.action_popular_title);
+        }
+        this.startTopFilmsDownloadTask(_currentPageNumber);
     }
     
     /**
@@ -410,7 +433,7 @@ public class MainActivity extends AppCompatActivity {
      */
     private void showFavouriteFilms()
     {
-        currentViewMode = ViewMode.FAVOURITES;
+        _currentViewMode = ViewMode.FAVOURITES;
         clearLists();
         customToolBar.setTitle(R.string.action_favourites_title);
     }
@@ -418,8 +441,7 @@ public class MainActivity extends AppCompatActivity {
     private void clearLists()
     {
         _cardList.clear();
-        LinearLayout ll = findViewById(R.id.card_linear_lyaout);
-        ll.removeAllViews();
+        cardsContainer.removeAllViews();
     }
     
     /**
