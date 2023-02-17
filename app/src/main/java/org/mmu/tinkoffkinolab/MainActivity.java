@@ -281,6 +281,11 @@ public class MainActivity extends AppCompatActivity {
                 refeshUIContent();
                 break;
             }
+            case R.id.action_go_to_top:
+            {
+                swipeRefreshContainer.getChildAt(0).scrollTo(0,0);
+                break;
+            }
             default:
             {
                 Log.w(Constants.LOG_TAG, "Неизвестная команда меню!");

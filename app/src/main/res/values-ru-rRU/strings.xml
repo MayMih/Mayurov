@@ -6,4 +6,5 @@
     <string name="repeat_button_caption">Повторить</string>
     <string name="filmposter_image_alt_text">Здесь должен быть постер</string>
     <string name="action_refresh_title">Обновить</string>
+    <string name="action_go_to_top_title">Перейти в начало списка</string>
 </resources>

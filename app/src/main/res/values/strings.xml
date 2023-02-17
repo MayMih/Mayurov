@@ -6,4 +6,5 @@
     <string name="repeat_button_caption">Repeat</string>
     <string name="filmposter_image_alt_text">FilmPoster</string>
     <string name="action_refresh_title">Refrersh</string>
+    <string name="action_go_to_top_title">Go to top of the list</string>
 </resources>

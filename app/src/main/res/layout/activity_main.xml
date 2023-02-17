@@ -82,9 +82,8 @@
             android:orientation="vertical"
             android:paddingLeft="5dp"
             android:paddingRight="5dp"
-            tools:ignore="SpeakableTextPresentCheck"
             android:scrollbarThumbVertical="@color/neo_light"
-            >
+            tools:ignore="SpeakableTextPresentCheck">
 
             <LinearLayout
                 android:id="@+id/card_linear_lyaout"
