@@ -69,31 +69,22 @@
         android:id="@+id/film_list_swipe_refresh_container"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:fadeScrollbars="false"
-        android:isScrollContainer="true"
-        android:scrollIndicators="right"
-        android:scrollbarAlwaysDrawVerticalTrack="true"
-        android:scrollbarStyle="insideOverlay"
-        android:scrollbars="vertical"
-        android:verticalScrollbarPosition="right"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/input_panel">
+        app:layout_constraintTop_toBottomOf="@+id/input_panel"
+        >
 
         <ScrollView
             android:id="@+id/card_scroller"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:fadeScrollbars="false"
             android:orientation="vertical"
             android:paddingLeft="5dp"
             android:paddingRight="5dp"
-            android:scrollIndicators="top|start"
-            android:scrollbarAlwaysDrawVerticalTrack="true"
-            android:scrollbarStyle="insideInset"
-            android:verticalScrollbarPosition="right"
-            tools:ignore="SpeakableTextPresentCheck">
+            tools:ignore="SpeakableTextPresentCheck"
+            android:scrollbarThumbVertical="@color/neo_light"
+            >
 
             <LinearLayout
                 android:id="@+id/card_linear_lyaout"
@@ -101,12 +92,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical" />
         </ScrollView>
-        <!--        app:layout_constraintBottom_toBottomOf="parent"-->
-        <!--        app:layout_constraintEnd_toEndOf="parent"-->
-        <!--        app:layout_constraintStart_toStartOf="parent"-->
-        <!--        app:layout_constraintTop_toBottomOf="@+id/text_input_layout"-->
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
-    <!--        xmlns:_android="http://"-->
-    <!--        android:visibility="gone"-->
+
 
 </androidx.constraintlayout.widget.ConstraintLayout>

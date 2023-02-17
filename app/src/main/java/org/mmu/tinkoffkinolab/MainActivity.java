@@ -191,7 +191,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState)
     {
         super.onCreate(savedInstanceState);
-        Log.w(Constants.LOG_TAG, "start of onCreate function");
+        Log.w(Constants.LOG_TAG, "start of onCreate method");
         setContentView(R.layout.activity_main);
         isRus = Locale.getDefault().getLanguage().equalsIgnoreCase("ru");
     
@@ -204,17 +204,14 @@ public class MainActivity extends AppCompatActivity {
         customToolBar = findViewById(R.id.top_toolbar);
         inputPanel = findViewById(R.id.input_panel);
         swipeRefreshContainer = findViewById(R.id.film_list_swipe_refresh_container);
+        swipeRefreshContainer.setColorSchemeResources(R.color.biz, R.color.neo, R.color.neo_dark, R.color.purple_light);
         
         this.setSupportActionBar(customToolBar);
         
         this.setEventHandlers();
         
-        ScrollView scr = findViewById(R.id.card_scroller);
-        scr.setVerticalScrollBarEnabled(true);
-        //swipeRefreshContainer.
-        
         showPopularFilmsAsync(true);
-        Log.w(Constants.LOG_TAG, "end of onCreate function");
+        Log.w(Constants.LOG_TAG, "end of onCreate method");
     }
     
     /**
@@ -316,7 +313,7 @@ public class MainActivity extends AppCompatActivity {
             return true;
         });
         // при прокрутке списка фильмов до конца подгружаем следующую страницу результатов (если есть)
-        final ScrollView scroller = findViewById(R.id.card_scroller);
+        final var scroller = findViewById(R.id.card_scroller);
         scroller.setOnScrollChangeListener((v, scrollX, scrollY, oldScrollX, oldScrollY) ->
         {
             boolean isBottomReached = cardsContainer.getBottom() - v.getBottom() - scrollY == 0;
