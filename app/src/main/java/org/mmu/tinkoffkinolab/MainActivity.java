@@ -8,6 +8,8 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import android.content.Intent;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -17,7 +19,6 @@ import android.view.inputmethod.EditorInfo;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
-import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -28,6 +29,7 @@ import com.squareup.picasso.Picasso;
 
 import java.util.AbstractMap;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -172,6 +174,7 @@ public class MainActivity extends AppCompatActivity {
     private LinearLayout cardsContainer;
     private ViewMode _currentViewMode;
     private LayoutInflater _layoutInflater;
+    private boolean _isFiltered;
     
     //endregion 'Поля и константы'
     
@@ -310,12 +313,38 @@ public class MainActivity extends AppCompatActivity {
         swipeRefreshContainer.setOnRefreshListener(this::refeshUIContent);
         // ищем текст по кнопке ВВОД на клавиатуре
         txtQuery.setOnEditorActionListener((v, actionId, event) -> {
-            if (actionId == EditorInfo.IME_ACTION_DONE)
+            // N.B. Похоже, только для действия Done можно реализовать автоскрытие клавиатуры - при остальных клава остаётся на экране после клика
+            if (actionId == EditorInfo.IME_ACTION_DONE || actionId == EditorInfo.IME_ACTION_GO || actionId == EditorInfo.IME_ACTION_SEARCH)
             {
                 Toast.makeText(this, "Фильтрация ещё не реализована!", Toast.LENGTH_SHORT).show();
                 return false;
             }
             return true;
+        });
+        // Обработчик изменения текста в поисковом контроле
+        txtQuery.addTextChangedListener(new TextWatcher()
+        {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after)
+            {
+            }
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count)
+            {
+            }
+            @Override
+            public void afterTextChanged(Editable s)
+            {
+                final var query = s.toString();
+                if (query.isBlank())
+                {
+                    showFilmCardsUI();
+                }
+                else
+                {
+                    filterFilmCardsUI(s.toString());
+                }
+            }
         });
         // при прокрутке списка фильмов до конца подгружаем следующую страницу результатов (если есть)
         final var scroller = findViewById(R.id.card_scroller);
@@ -335,6 +364,68 @@ public class MainActivity extends AppCompatActivity {
                 inputPanel.setCardElevation(0);
             }
         });
+    }
+    
+    /**
+     * Метод показа (вывода из невидимости) всех карточек фильмов
+     *
+     * @apiNote Вызов имеет смысл, только если перед этим был вызов {@link #filterFilmCardsUI(String)}
+     * @implNote Сбрасывает признак фильтрации списка {@link #_isFiltered}
+     *
+     */
+    private void showFilmCardsUI()
+    {
+        if (_isFiltered)
+        {
+            for (int i = 0; i < cardsContainer.getChildCount(); i++)
+            {
+                cardsContainer.getChildAt(i).setVisibility(View.VISIBLE);
+            }
+        }
+        _isFiltered = false;
+    }
+    
+    /**
+     * Метод фильтрации списка Фильмов на экране
+     *
+     * @param query строка для поиска любого из слов названия фильма
+     * @apiNote Метод не выдаёт совпадения для слов короче 3-х символов (для исключения предлогов)
+     * @implSpec  При пустом <code>query</code> не делает НИЧЕГО - для отмены фильтра используйте {@link #showFilmCardsUI()}
+     */
+    private void filterFilmCardsUI(String query)
+    {
+        if (query.isBlank())
+        {
+            return;
+        }
+        final var foundFilms = _cardList.stream().filter(x -> {
+            final var words = Arrays.stream(Objects.requireNonNull(x.get(Constants.ADAPTER_TITLE)).split(" "));
+            return words.anyMatch(t -> t.length() > 2 && t.toLowerCase().startsWith(query.strip().toLowerCase()));
+        })
+            .collect(Collectors.toList());
+        
+        for (int i = 0; i < cardsContainer.getChildCount(); i++)
+        {
+            final var filmCardView = cardsContainer.getChildAt(i);
+            if (filmCardView.getId() == R.id.film_card_view)
+            {
+                final var txtFilmId = filmCardView.findViewById(R.id.film_id_holder);
+                if (txtFilmId instanceof TextView)
+                {
+                    final var filmId = ((TextView)txtFilmId).getText().toString();
+                    if (foundFilms.stream().noneMatch(film -> Objects.requireNonNull(
+                            film.get(Constants.ADAPTER_FILM_ID)).equalsIgnoreCase(filmId)))
+                    {
+                        filmCardView.setVisibility(View.GONE);
+                    }
+                    else
+                    {
+                        filmCardView.setVisibility(View.VISIBLE);
+                    }
+                }
+            }
+        }
+        _isFiltered = true;
     }
     
     /**
@@ -464,5 +555,6 @@ public class MainActivity extends AppCompatActivity {
     }
     
     //endregion 'Методы'
+    
     
 }
