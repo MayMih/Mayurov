@@ -5,11 +5,14 @@ import static org.mmu.tinkoffkinolab.Constants.*;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
+import androidx.core.graphics.drawable.RoundedBitmapDrawable;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.drawable.Drawable;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Debug;
@@ -140,7 +143,7 @@ public class MainActivity extends AppCompatActivity
             else
             {
                 Log.d(LOG_TAG, "Загрузка Веб-ресурса завершена успешно");
-                fillFilmListUI((_currentPageNumber - 1) * FILMS_COUNT_PER_PAGE);
+                fillCardListUIFrom((_currentPageNumber - 1) * FILMS_COUNT_PER_PAGE, _cardList);
                 _topFilmsPagesCount = pagesCount;
                 if (_currentPageNumber < _topFilmsPagesCount)
                 {
@@ -249,10 +252,40 @@ public class MainActivity extends AppCompatActivity
         
         this.setEventHandlers();
         
-        showPopularFilmsAsync(true);
+        switchUIToPopularFilmsAsync(true);
         Log.w(LOG_TAG, "End of onCreate() method ---------------------");
     }
     
+    /**
+     * Обработчик сохранения состояния программы - если список Избранного пуст, то удаляет кеш изображений
+     *
+     * @param outState Bundle in which to place your saved state.
+     */
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState)
+    {
+        super.onSaveInstanceState(outState);
+        if (_favouritesMap.isEmpty())
+        {
+            this.deleteFile(Constants.FAVOURITES_LIST_FILENAME);
+            if (_imageCacheDirPath.exists())
+            {
+                //noinspection ResultOfMethodCallIgnored
+                Arrays.stream(Objects.requireNonNull(_imageCacheDirPath.listFiles())).parallel()
+                        .forEach(File::delete);
+            }
+        }
+        else
+        {
+            saveFavouritesList();
+        }
+        Log.d(LOG_TAG, "-------------------------- состояние сохранено! ----------------");
+    }
+    
+    private void saveFavouritesList()
+    {
+    
+    }
     
     @Override
     public boolean onCreateOptionsMenu(Menu menu)
@@ -269,12 +302,12 @@ public class MainActivity extends AppCompatActivity
         {
             case R.id.action_switch_to_favorites:
             {
-                showFavouriteFilms();
+                switchUIToFavouriteFilms();
                 break;
             }
             case R.id.action_switch_to_popular:
             {
-                showPopularFilmsAsync(true);
+                switchUIToPopularFilmsAsync(true);
                 break;
             }
             case R.id.action_refresh:
@@ -296,7 +329,32 @@ public class MainActivity extends AppCompatActivity
         return super.onOptionsItemSelected(item);
     }
     
+    @NonNull
+    private View.OnClickListener getOnLikeButtonClickListener(Map<String, String> cardData, String id,
+                                                              ImageView sourceView, ImageView likeButton)
+    {
+        return (View v) -> {
+            if (addToOrRemoveFromFavourites(id, cardData, sourceView.getDrawable()))
+            {
+                if (v != likeButton)
+                {
+                    Toast.makeText(this, "Фильм добавлен в Избранное", Toast.LENGTH_SHORT).show();
+                }
+                likeButton.setImageResource(R.drawable.baseline_favorite_24);
+            }
+            else
+            {
+                if (v != likeButton)
+                {
+                    Toast.makeText(this, "Фильм удалён из списка Избранных", Toast.LENGTH_SHORT).show();
+                }
+                likeButton.setImageResource(R.drawable.baseline_favorite_border_24);
+            }
+        };
+    }
+    
     //endregion 'Обработчики'
+    
     
     
     
@@ -353,7 +411,7 @@ public class MainActivity extends AppCompatActivity
             boolean isBottomReached = cardsContainer.getBottom() - v.getBottom() - scrollY == 0;
             if (isBottomReached && this._currentViewMode == ViewMode.POPULAR && _currentPageNumber < _topFilmsPagesCount)
             {
-                showPopularFilmsAsync(false);
+                switchUIToPopularFilmsAsync(false);
             }
             else if (scrollY > 20)
             {
@@ -434,11 +492,11 @@ public class MainActivity extends AppCompatActivity
     {
         if (this._currentViewMode == ViewMode.POPULAR)
         {
-            showPopularFilmsAsync(true);
+            switchUIToPopularFilmsAsync(true);
         }
         else if (this._currentViewMode == ViewMode.FAVOURITES)
         {
-            showFavouriteFilms();
+            switchUIToFavouriteFilms();
         }
     }
     
@@ -447,58 +505,52 @@ public class MainActivity extends AppCompatActivity
      *
      * @implNote Также навешивает обработчики на вновь созданные элементы списка
      */
-    private void fillFilmListUI(int startItemIndex)
+    private void fillCardListUIFrom(int startItemIndex, List<Map<String, String>> cardList)
     {
-        for (int i = startItemIndex; i < _cardList.size(); i++)
+        for (int i = startItemIndex; i < cardList.size(); i++)
         {
             final var listItem = _layoutInflater.inflate(R.layout.list_item, null);
-            final var cardData = _cardList.get(i);
+            final var cardData = cardList.get(i);
             final var id = cardData.get(Constants.ADAPTER_FILM_ID);
-            final var idField = ((TextView) listItem.findViewById(R.id.film_id_holder));
-            idField.setText(id);
+            ((TextView) listItem.findViewById(R.id.film_id_holder)).setText(id);
             final var title = cardData.get(Constants.ADAPTER_TITLE);
             ((TextView) listItem.findViewById(R.id.card_title)).setText(title);
-            ((TextView) listItem.findViewById(R.id.card_content)).setText(cardData.get(Constants.ADAPTER_CONTENT));
+            ((TextView) listItem.findViewById(R.id.card_content)).setText(cardData.get(ADAPTER_CONTENT));
             final var imgView = ((ImageView) listItem.findViewById(R.id.poster_preview));
             final var imageUrl = cardData.get(Constants.ADAPTER_POSTER_PREVIEW_URL);
-            Picasso.get().load(imageUrl).transform(new RoundedCornersTransformation(30, 10)).into(imgView);
+            final var cachedImageFilePath = cardData.getOrDefault(ADAPTER_IMAGE_PREVIEW_FILE_PATH, "");
+            //noinspection ConstantConditions
+            if (cachedImageFilePath.isEmpty())
+            {
+                Picasso.get().load(imageUrl).transform(new RoundedCornersTransformation(30, 10)).into(imgView);
+            }
+            else
+            {
+                final var previewImageFile = new File(cachedImageFilePath);
+                if (previewImageFile.exists())
+                {
+                    imgView.setImageURI(Uri.fromFile(previewImageFile));
+                    //imgView.setImageDrawable(RoundedBitmapDrawable.createFromPath(cachedImageFilePath));
+                    Log.d(LOG_TAG, "Картинка загружена из файла: " + cachedImageFilePath);
+                }
+            }
             cardsContainer.addView(listItem);
             listItem.setOnClickListener(v -> showFilmCardActivity(id, title));
             final ImageView imgViewLike = listItem.findViewById(R.id.like_image_view);
+            // TODO: возможно фильм нужно искать по названию, а не по ИД, на случай, если ИД поменяется?
             if (getFavouritesMap().containsKey(id))
             {
                 imgViewLike.setImageResource(R.drawable.baseline_favorite_24);
             }
-            final var likeButtonClickHandler = getOnLikeButtonClickListener(cardData, id, imgView, imgViewLike);
+            final var likeButtonClickHandler = getOnLikeButtonClickListener(
+                    cardData, id, imgView, imgViewLike);
             imgViewLike.setOnClickListener(likeButtonClickHandler);
+            // Требование ТЗ: "При длительном клике на карточку, фильм помещается в избранное"
             listItem.setOnLongClickListener(v -> {
                 likeButtonClickHandler.onClick(v);
                 return true;
             });
         }
-    }
-    
-    @NonNull
-    private View.OnClickListener getOnLikeButtonClickListener(Map<String, String> cardData, String id, ImageView imgView, ImageView imgViewLike)
-    {
-        return v -> {
-            if (addToOrRemoveFromFavourites(id, cardData, imgView.getDrawable()))
-            {
-                if (v != imgViewLike)
-                {
-                    Toast.makeText(this, "Фильм добавлен в Избранное", Toast.LENGTH_SHORT).show();
-                }
-                imgViewLike.setImageResource(R.drawable.baseline_favorite_24);
-            }
-            else
-            {
-                if (v != imgViewLike)
-                {
-                    Toast.makeText(this, "Фильм удалён из списка Избранных", Toast.LENGTH_SHORT).show();
-                }
-                imgViewLike.setImageResource(R.drawable.baseline_favorite_border_24);
-            }
-        };
     }
     
     /**
@@ -517,7 +569,7 @@ public class MainActivity extends AppCompatActivity
         {
             Log.w(LOG_TAG, "Ошибка создания подкаталога для кэша постеров к фильмам");
         }
-        final var imgPreviewFilePath = new File(_imageCacheDirPath, "preview_" + id + ".jpg");
+        final var imgPreviewFilePath = new File(_imageCacheDirPath, "preview_" + id + ".webp");
         
         if (this.getFavouritesMap().containsKey(id))
         {
@@ -532,7 +584,7 @@ public class MainActivity extends AppCompatActivity
         // малый постер
         try (var outStream = new FileOutputStream(imgPreviewFilePath))
         {
-            Utils.convertDrawableToBitmap(image).compress(Bitmap.CompressFormat.JPEG, 80, outStream);
+            Utils.convertDrawableToBitmap(image).compress(Bitmap.CompressFormat.WEBP, 80, outStream);
         }
         catch (IOException e)
         {
@@ -541,8 +593,9 @@ public class MainActivity extends AppCompatActivity
         }
         final var curData = new ArrayList<>(cardData.entrySet());
         curData.add(Map.entry(Constants.ADAPTER_IMAGE_PREVIEW_FILE_PATH, imgPreviewFilePath.toString()));
-        final var filmData = Map.ofEntries(curData.toArray(new Map.Entry[0]));
-        this.getFavouritesMap().put(id, cardData);
+        @SuppressWarnings("unchecked")
+        final Map<String, String> filmData = Map.ofEntries(curData.toArray(new Map.Entry[0]));
+        this.getFavouritesMap().put(id, filmData);
         return true;
     }
     
@@ -584,11 +637,11 @@ public class MainActivity extends AppCompatActivity
     }
     
     /**
-     * Метод показа ТОП-100 популярных фильмов
+     * Метод показа ТОП-100 популярных фильмов - асинхронно загружает список фильмов из Сети
      *
      * @param isClearBeforeShow если True, текущий список очищается и показ начинается с первой страницы
      */
-    private void showPopularFilmsAsync(boolean isClearBeforeShow)
+    private void switchUIToPopularFilmsAsync(boolean isClearBeforeShow)
     {
         if (isClearBeforeShow)
         {
@@ -599,18 +652,25 @@ public class MainActivity extends AppCompatActivity
         {
             _currentViewMode = ViewMode.POPULAR;
             customToolBar.setTitle(R.string.action_popular_title);
+            swipeRefreshContainer.setEnabled(true);
         }
         this.startTopFilmsDownloadTask(_currentPageNumber);
     }
     
     /**
-     * Заготовка метода показа Избранных фильмов
+     * Метода показа Избранных фильмов
      */
-    private void showFavouriteFilms()
+    private void switchUIToFavouriteFilms()
     {
+        if (_currentViewMode == ViewMode.FAVOURITES)
+        {
+            return;
+        }
+        swipeRefreshContainer.setEnabled(false);
         _currentViewMode = ViewMode.FAVOURITES;
         clearLists();
         customToolBar.setTitle(R.string.action_favourites_title);
+        fillCardListUIFrom(0, new ArrayList<>(getFavouritesMap().values()));
     }
     
     private void clearLists()

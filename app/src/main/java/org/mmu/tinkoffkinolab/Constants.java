@@ -7,8 +7,9 @@ public class Constants
     public static final String ADAPTER_TITLE = "Title";
     public static final String ADAPTER_CONTENT = "Content";
     public static final String ADAPTER_IMAGE_PREVIEW_FILE_PATH = "preview_file_path";
-    public static final String FAVOURITES_CASH_DIR_NAME = "favourites_image_cash";
+    public static final String FAVOURITES_CASH_DIR_NAME = "favourites_image_cache";
     public static final String LOG_TAG = MainActivity.class.getSimpleName();
+    public static final String FAVOURITES_LIST_FILENAME = "favourites.txt";
     /**
      * Демо-ключ неофициального API Книнопоиска
      *
