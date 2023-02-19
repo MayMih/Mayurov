@@ -1,5 +1,7 @@
 package org.mmu.tinkoffkinolab;
 
+import static org.mmu.tinkoffkinolab.Constants.*;
+
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
@@ -7,16 +9,11 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import android.content.Intent;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
-import android.graphics.Picture;
-import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
-import android.graphics.drawable.PictureDrawable;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Debug;
-import android.provider.ContactsContract;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
@@ -39,11 +36,6 @@ import com.squareup.picasso.Picasso;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.nio.file.Files;
-import java.nio.file.OpenOption;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -92,7 +84,7 @@ public class MainActivity extends AppCompatActivity
             super.onPreExecute();
             progBar.setVisibility(View.VISIBLE);
             progBar.bringToFront();
-            Log.d(Constants.LOG_TAG, "Начало загрузки веб-ресурса...");
+            Log.d(LOG_TAG, "Начало загрузки веб-ресурса...");
         }
         
         @Override
@@ -131,7 +123,7 @@ public class MainActivity extends AppCompatActivity
                     mes += String.format(Locale.ROOT, " %s (ErrorCode: %d), ResponseHeaders: \n%s\n ResponseBody: \n%s\n",
                             KINO_API_ERROR_MES, apiEx.getCode(), headersText, apiEx.getResponseBody());
                 }
-                Log.e(Constants.LOG_TAG, mes.isEmpty() ? UNKNOWN_WEB_ERROR_MES : mes, ex);
+                Log.e(LOG_TAG, mes.isEmpty() ? UNKNOWN_WEB_ERROR_MES : mes, ex);
             }
             return res;
         }
@@ -148,7 +140,7 @@ public class MainActivity extends AppCompatActivity
             }
             else
             {
-                Log.d(Constants.LOG_TAG, "Загрузка Веб-ресурса завершена успешно");
+                Log.d(LOG_TAG, "Загрузка Веб-ресурса завершена успешно");
                 fillFilmListUI((_currentPageNumber - 1) * FILMS_COUNT_PER_PAGE);
                 _topFilmsPagesCount = pagesCount;
                 if (_currentPageNumber < _topFilmsPagesCount)
@@ -166,8 +158,11 @@ public class MainActivity extends AppCompatActivity
     //endregion 'Типы'
     
     
+    
     //region 'Поля и константы'
     private static final List<Map<String, String>> _cardList = new ArrayList<>();
+    private static File _imageCacheDirPath;
+    
     private boolean isRus;
     private MaterialToolbar customToolBar;
     private Snackbar _lastSnackBar;
@@ -194,6 +189,7 @@ public class MainActivity extends AppCompatActivity
     private boolean _isFiltered;
     
     //endregion 'Поля и константы'
+    
     
     
     //region 'Свойства'
@@ -229,7 +225,7 @@ public class MainActivity extends AppCompatActivity
     protected void onCreate(Bundle savedInstanceState)
     {
         super.onCreate(savedInstanceState);
-        Log.w(Constants.LOG_TAG, "---------------- Start of onCreate() method");
+        Log.w(LOG_TAG, "---------------- Start of onCreate() method");
         setContentView(R.layout.activity_main);
         customToolBar = findViewById(R.id.top_toolbar);
         this.setSupportActionBar(customToolBar);
@@ -250,11 +246,12 @@ public class MainActivity extends AppCompatActivity
         inputPanel = findViewById(R.id.input_panel);
         swipeRefreshContainer = findViewById(R.id.film_list_swipe_refresh_container);
         swipeRefreshContainer.setColorSchemeResources(R.color.biz, R.color.neo, R.color.neo_dark, R.color.purple_light);
+        _imageCacheDirPath = new File(this.getCacheDir(), Constants.FAVOURITES_CASH_DIR_NAME);
         
         this.setEventHandlers();
         
         showPopularFilmsAsync(true);
-        Log.w(Constants.LOG_TAG, "End of onCreate() method ---------------------");
+        Log.w(LOG_TAG, "End of onCreate() method ---------------------");
     }
     
     
@@ -268,7 +265,7 @@ public class MainActivity extends AppCompatActivity
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item)
     {
-        Log.d(Constants.LOG_TAG, String.format("Команда меню \"%s\"", item.getTitle()));
+        Log.d(LOG_TAG, String.format("Команда меню \"%s\"", item.getTitle()));
         switch (item.getItemId())
         {
             case R.id.action_switch_to_favorites:
@@ -293,7 +290,7 @@ public class MainActivity extends AppCompatActivity
             }
             default:
             {
-                Log.w(Constants.LOG_TAG, "Неизвестная команда меню!");
+                Log.w(LOG_TAG, "Неизвестная команда меню!");
                 break;
             }
         }
@@ -301,6 +298,7 @@ public class MainActivity extends AppCompatActivity
     }
     
     //endregion 'Обработчики'
+    
     
     
     //region 'Методы'
@@ -447,6 +445,8 @@ public class MainActivity extends AppCompatActivity
     
     /**
      * Метод заполнения списка фильмов на основе сохранённых данных из {@link #_cardList}
+     *
+     * @implNote Также навешивает обработчики на вновь созданные элементы списка
      */
     private void fillFilmListUI(int startItemIndex)
     {
@@ -465,18 +465,37 @@ public class MainActivity extends AppCompatActivity
             Picasso.get().load(imageUrl).transform(new RoundedCornersTransformation(30, 10)).into(imgView);
             cardsContainer.addView(listItem);
             listItem.setOnClickListener(v -> showFilmCardActivity(id, title));
-            listItem.setOnLongClickListener(b -> {
-                if (addToOrRemoveFromFavourites(id, cardData, imgView.getDrawable()))
-                {
-                    Toast.makeText(this, "Фильм добавлен в Избранное", Toast.LENGTH_SHORT).show();
-                }
-                else
-                {
-                    Toast.makeText(this, "Фильм удалён из списка Избранных", Toast.LENGTH_SHORT).show();
-                }
+            final ImageView imgViewLike = listItem.findViewById(R.id.like_image_view);
+            final var likeButtonClickHandler = getOnLikeButtonClickListener(cardData, id, imgView, imgViewLike);
+            imgViewLike.setOnClickListener(likeButtonClickHandler);
+            listItem.setOnLongClickListener(v -> {
+                likeButtonClickHandler.onClick(v);
                 return true;
             });
         }
+    }
+    
+    @NonNull
+    private View.OnClickListener getOnLikeButtonClickListener(Map<String, String> cardData, String id, ImageView imgView, ImageView imgViewLike)
+    {
+        return v -> {
+            if (addToOrRemoveFromFavourites(id, cardData, imgView.getDrawable()))
+            {
+                if (v != imgViewLike)
+                {
+                    Toast.makeText(this, "Фильм добавлен в Избранное", Toast.LENGTH_SHORT).show();
+                }
+                imgViewLike.setImageResource(R.drawable.baseline_favorite_24);
+            }
+            else
+            {
+                if (v != imgViewLike)
+                {
+                    Toast.makeText(this, "Фильм удалён из списка Избранных", Toast.LENGTH_SHORT).show();
+                }
+                imgViewLike.setImageResource(R.drawable.baseline_favorite_border_24);
+            }
+        };
     }
     
     /**
@@ -491,17 +510,18 @@ public class MainActivity extends AppCompatActivity
      */
     private boolean addToOrRemoveFromFavourites(String id, Map<String, String> cardData, Drawable image)
     {
-        final String FAVOURITES_CASH_DIR_NAME = "favourites_image_cash";
-        final var IMAGE_CASH_DIR_PATH = new File(this.getCacheDir(), FAVOURITES_CASH_DIR_NAME);
-        if (!IMAGE_CASH_DIR_PATH.exists() && !IMAGE_CASH_DIR_PATH.mkdir())
+        if (!_imageCacheDirPath.exists() && !_imageCacheDirPath.mkdir())
         {
-            Log.w(Constants.LOG_TAG, "Ошибка создания подкаталога для кэша постеров к фильмам");
+            Log.w(LOG_TAG, "Ошибка создания подкаталога для кэша постеров к фильмам");
         }
-        final var imgPreviewFilePath = new File(IMAGE_CASH_DIR_PATH, "preview_" + id + ".jpg");
+        final var imgPreviewFilePath = new File(_imageCacheDirPath, "preview_" + id + ".jpg");
         
         if (this.getFavouritesMap().containsKey(id))
         {
-            this.deleteFile(imgPreviewFilePath.toString());
+            if (!imgPreviewFilePath.delete())
+            {
+                Log.w(LOG_TAG, "Не удалось удалить файл " + imgPreviewFilePath);
+            }
             this.getFavouritesMap().remove(id);
             return false;
         }
@@ -513,7 +533,7 @@ public class MainActivity extends AppCompatActivity
         }
         catch (IOException e)
         {
-            Log.e(Constants.LOG_TAG, "Ошибка записи в файл", e);
+            Log.e(LOG_TAG, "Ошибка записи в файл", e);
             Toast.makeText(this,"Что-то пошло не так: Ошибка записи в файл", Toast.LENGTH_SHORT).show();
         }
         final var curData = new ArrayList<>(cardData.entrySet());
@@ -533,7 +553,6 @@ public class MainActivity extends AppCompatActivity
     {
         Bitmap bm = Bitmap.createBitmap(pd.getIntrinsicWidth(), pd.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(bm);
-        //canvas.drawPicture(pd.getPicture());
         pd.draw(canvas);
         return bm;
     }
