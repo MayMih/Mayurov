@@ -1,10 +1,12 @@
 package org.mmu.tinkoffkinolab;
 
+
 public class Constants
 {
     public static final String ADAPTER_FILM_ID = "ID";
     public static final String ADAPTER_TITLE = "Title";
     public static final String ADAPTER_CONTENT = "Content";
+    public static final String ADAPTER_IMAGE_PREVIEW_FILE_PATH = "preview_file_path";
     static final String LOG_TAG = MainActivity.class.getSimpleName();
     /**
      * Демо-ключ неофициального API Книнопоиска

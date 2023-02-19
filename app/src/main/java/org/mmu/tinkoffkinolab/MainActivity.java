@@ -6,8 +6,17 @@ import androidx.cardview.widget.CardView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.Picture;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.PictureDrawable;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Debug;
+import android.provider.ContactsContract;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
@@ -27,6 +36,14 @@ import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.textfield.TextInputEditText;
 import com.squareup.picasso.Picasso;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.OpenOption;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -42,7 +59,8 @@ import io.swagger.client.ApiException;
 import io.swagger.client.api.FilmsApi;
 import jp.wasabeef.picasso.transformations.RoundedCornersTransformation;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity
+{
     
     
     //region 'Типы'
@@ -67,7 +85,7 @@ public class MainActivity extends AppCompatActivity {
         {
             filmsApi = engine;
         }
-    
+        
         @Override
         protected void onPreExecute()
         {
@@ -94,7 +112,7 @@ public class MainActivity extends AppCompatActivity {
                     final var id = String.valueOf(filmData.getFilmId());
                     Optional<String> name = Optional.ofNullable(isRus ? filmData.getNameRu() : filmData.getNameEn());
                     _cardList.add(Map.of(Constants.ADAPTER_TITLE, name.orElse(id),
-                            Constants.ADAPTER_CONTENT,filmData.getGenres().get(0).getGenre() + " (" + filmData.getYear() + ")",
+                            Constants.ADAPTER_CONTENT, filmData.getGenres().get(0).getGenre() + " (" + filmData.getYear() + ")",
                             Constants.ADAPTER_FILM_ID, id, Constants.ADAPTER_POSTER_PREVIEW_URL, filmData.getPosterUrlPreview())
                     );
                 }
@@ -105,7 +123,7 @@ public class MainActivity extends AppCompatActivity {
                 error = new AbstractMap.SimpleEntry<>(ex, mes);
                 if (ex instanceof ApiException)
                 {
-                    var apiEx = (ApiException)ex;
+                    var apiEx = (ApiException) ex;
                     var headers = apiEx.getResponseHeaders();
                     var headersText = headers == null ? "" : headers.entrySet().stream().map(
                             entry -> entry.getKey() + ": " + String.join(" \n", entry.getValue())
@@ -117,7 +135,7 @@ public class MainActivity extends AppCompatActivity {
             }
             return res;
         }
-
+        
         @Override
         protected void onPostExecute(Integer pagesCount)
         {
@@ -146,7 +164,6 @@ public class MainActivity extends AppCompatActivity {
     }
     
     //endregion 'Типы'
-    
     
     
     //region 'Поля и константы'
@@ -178,6 +195,25 @@ public class MainActivity extends AppCompatActivity {
     
     //endregion 'Поля и константы'
     
+    
+    //region 'Свойства'
+    
+    private Map<String, Map<String, String>> _favouritesMap;
+    
+    /**
+     * Возвращает список избранных фильмов
+     */
+    public Map<String, Map<String, String>> getFavouritesMap()
+    {
+        if (_favouritesMap == null)
+        {
+            _favouritesMap = new HashMap<>();
+        }
+        return _favouritesMap;
+    }
+    
+    //endregion 'Свойства'
+    
 
     
     //region 'Обработчики'
@@ -186,73 +222,39 @@ public class MainActivity extends AppCompatActivity {
      * При создании Экрана навешиваем обработчик обновления списка свайпом
      *
      * @param savedInstanceState If the activity is being re-initialized after
-     *     previously being shut down then this Bundle contains the data it most
-     *     recently supplied in {@link #onSaveInstanceState}.  <b><i>Note: Otherwise it is null.</i></b>
-     *
+     *                           previously being shut down then this Bundle contains the data it most
+     *                           recently supplied in {@link #onSaveInstanceState}.  <b><i>Note: Otherwise it is null.</i></b>
      */
     @Override
     protected void onCreate(Bundle savedInstanceState)
     {
         super.onCreate(savedInstanceState);
-        Log.w(Constants.LOG_TAG, "start of onCreate method");
+        Log.w(Constants.LOG_TAG, "---------------- Start of onCreate() method");
         setContentView(R.layout.activity_main);
+        customToolBar = findViewById(R.id.top_toolbar);
+        this.setSupportActionBar(customToolBar);
+        
+        if (Debug.isDebuggerConnected())
+        {
+            Picasso.get().setIndicatorsEnabled(true);
+            Picasso.get().setLoggingEnabled(true);
+        }
         isRus = Locale.getDefault().getLanguage().equalsIgnoreCase("ru");
-    
+        
         _layoutInflater = getLayoutInflater();
         androidContentView = findViewById(android.R.id.content);
         progBar = findViewById(R.id.progress_bar);
         progBar.setVisibility(View.GONE);
         txtQuery = findViewById(R.id.txt_input);
         cardsContainer = findViewById(R.id.card_linear_lyaout);
-        customToolBar = findViewById(R.id.top_toolbar);
         inputPanel = findViewById(R.id.input_panel);
         swipeRefreshContainer = findViewById(R.id.film_list_swipe_refresh_container);
         swipeRefreshContainer.setColorSchemeResources(R.color.biz, R.color.neo, R.color.neo_dark, R.color.purple_light);
         
-        this.setSupportActionBar(customToolBar);
-        
         this.setEventHandlers();
         
         showPopularFilmsAsync(true);
-        Log.w(Constants.LOG_TAG, "end of onCreate method");
-    }
-    
-    /**
-     * @apiNote Почему-то не вызывается?!
-     * @param savedInstanceState the data most recently supplied in {@link #onSaveInstanceState}.
-     */
-    @Override
-    protected void onRestoreInstanceState(@NonNull Bundle savedInstanceState)
-    {
-        for (var filmEntry : savedInstanceState.getStringArrayList("FILM_LIST"))
-        {
-            final var entryMap = new HashMap<String, String>();
-            String[] split = filmEntry.split("=");
-            for (int i = 0; i < split.length; i++)
-            {
-                entryMap.put(split[i], split[++i]);
-            }
-            _cardList.add(entryMap);
-        }
-        super.onRestoreInstanceState(savedInstanceState);
-    }
-    
-    /**
-     * Обработчик сохранения скачанных данных
-     * @param outState Bundle in which to place your saved state.
-     */
-    @Override
-    protected void onSaveInstanceState(@NonNull Bundle outState)
-    {
-        super.onSaveInstanceState(outState);
-        final ArrayList<String> cardsData = new ArrayList<>(_cardList.size());
-        for (var filmItem : _cardList)
-        {
-            cardsData.addAll(filmItem.entrySet().stream()
-                    .map(x -> x.getKey() + "=" + x.getValue())
-                    .collect(Collectors.toList()));
-        }
-        outState.putStringArrayList("FILM_LIST", cardsData);
+        Log.w(Constants.LOG_TAG, "End of onCreate() method ---------------------");
     }
     
     
@@ -286,7 +288,7 @@ public class MainActivity extends AppCompatActivity {
             }
             case R.id.action_go_to_top:
             {
-                swipeRefreshContainer.getChildAt(0).scrollTo(0,0);
+                swipeRefreshContainer.getChildAt(0).scrollTo(0, 0);
                 break;
             }
             default:
@@ -299,7 +301,6 @@ public class MainActivity extends AppCompatActivity {
     }
     
     //endregion 'Обработчики'
-    
     
     
     //region 'Методы'
@@ -328,10 +329,12 @@ public class MainActivity extends AppCompatActivity {
             public void beforeTextChanged(CharSequence s, int start, int count, int after)
             {
             }
+            
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count)
             {
             }
+            
             @Override
             public void afterTextChanged(Editable s)
             {
@@ -371,7 +374,6 @@ public class MainActivity extends AppCompatActivity {
      *
      * @apiNote Вызов имеет смысл, только если перед этим был вызов {@link #filterFilmCardsUI(String)}
      * @implNote Сбрасывает признак фильтрации списка {@link #_isFiltered}
-     *
      */
     private void showFilmCardsUI()
     {
@@ -390,7 +392,7 @@ public class MainActivity extends AppCompatActivity {
      *
      * @param query строка для поиска любого из слов названия фильма
      * @apiNote Метод не выдаёт совпадения для слов короче 3-х символов (для исключения предлогов)
-     * @implSpec  При пустом <code>query</code> не делает НИЧЕГО - для отмены фильтра используйте {@link #showFilmCardsUI()}
+     * @implSpec При пустом <code>query</code> не делает НИЧЕГО - для отмены фильтра используйте {@link #showFilmCardsUI()}
      */
     private void filterFilmCardsUI(String query)
     {
@@ -399,10 +401,10 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         final var foundFilms = _cardList.stream().filter(x -> {
-            final var words = Arrays.stream(Objects.requireNonNull(x.get(Constants.ADAPTER_TITLE)).split(" "));
-            return words.anyMatch(t -> t.length() > 2 && t.toLowerCase().startsWith(query.strip().toLowerCase()));
-        })
-            .collect(Collectors.toList());
+                    final var words = Arrays.stream(Objects.requireNonNull(x.get(Constants.ADAPTER_TITLE)).split(" "));
+                    return words.anyMatch(t -> t.length() > 2 && t.toLowerCase().startsWith(query.strip().toLowerCase()));
+                })
+                .collect(Collectors.toList());
         
         for (int i = 0; i < cardsContainer.getChildCount(); i++)
         {
@@ -412,7 +414,7 @@ public class MainActivity extends AppCompatActivity {
                 final var txtFilmId = filmCardView.findViewById(R.id.film_id_holder);
                 if (txtFilmId instanceof TextView)
                 {
-                    final var filmId = ((TextView)txtFilmId).getText().toString();
+                    final var filmId = ((TextView) txtFilmId).getText().toString();
                     if (foundFilms.stream().noneMatch(film -> Objects.requireNonNull(
                             film.get(Constants.ADAPTER_FILM_ID)).equalsIgnoreCase(filmId)))
                     {
@@ -453,17 +455,87 @@ public class MainActivity extends AppCompatActivity {
             final var listItem = _layoutInflater.inflate(R.layout.list_item, null);
             final var cardData = _cardList.get(i);
             final var id = cardData.get(Constants.ADAPTER_FILM_ID);
-            final var idField = ((TextView)listItem.findViewById(R.id.film_id_holder));
+            final var idField = ((TextView) listItem.findViewById(R.id.film_id_holder));
             idField.setText(id);
             final var title = cardData.get(Constants.ADAPTER_TITLE);
-            ((TextView)listItem.findViewById(R.id.card_title)).setText(title);
-            ((TextView)listItem.findViewById(R.id.card_content)).setText(cardData.get(Constants.ADAPTER_CONTENT));
-            final var imgView = ((ImageView)listItem.findViewById(R.id.poster_preview));
+            ((TextView) listItem.findViewById(R.id.card_title)).setText(title);
+            ((TextView) listItem.findViewById(R.id.card_content)).setText(cardData.get(Constants.ADAPTER_CONTENT));
+            final var imgView = ((ImageView) listItem.findViewById(R.id.poster_preview));
             final var imageUrl = cardData.get(Constants.ADAPTER_POSTER_PREVIEW_URL);
             Picasso.get().load(imageUrl).transform(new RoundedCornersTransformation(30, 10)).into(imgView);
             cardsContainer.addView(listItem);
             listItem.setOnClickListener(v -> showFilmCardActivity(id, title));
+            listItem.setOnLongClickListener(b -> {
+                if (addToOrRemoveFromFavourites(id, cardData, imgView.getDrawable()))
+                {
+                    Toast.makeText(this, "Фильм добавлен в Избранное", Toast.LENGTH_SHORT).show();
+                }
+                else
+                {
+                    Toast.makeText(this, "Фильм удалён из списка Избранных", Toast.LENGTH_SHORT).show();
+                }
+                return true;
+            });
         }
+    }
+    
+    /**
+     * Метод добавления фильма в список Избранного (или удаления из него)
+     *
+     * @param id       ИД фильма - для быстрого поиска в списке
+     * @param cardData Список данных о фильме (пары ключ-значение)
+     * @param image    миниПостер фильма для сохранения в кэше (по ТЗ)
+     * @return True - фильм добавлен в список Избранного, False - удалён из него.
+     *
+     * @implSpec TODO: Возможно стоит уводить метод в отдельный поток, на случай если запись файла будет длиться дольше 5 секунд!
+     */
+    private boolean addToOrRemoveFromFavourites(String id, Map<String, String> cardData, Drawable image)
+    {
+        final String FAVOURITES_CASH_DIR_NAME = "favourites_image_cash";
+        final var IMAGE_CASH_DIR_PATH = new File(this.getCacheDir(), FAVOURITES_CASH_DIR_NAME);
+        if (!IMAGE_CASH_DIR_PATH.exists() && !IMAGE_CASH_DIR_PATH.mkdir())
+        {
+            Log.w(Constants.LOG_TAG, "Ошибка создания подкаталога для кэша постеров к фильмам");
+        }
+        final var imgPreviewFilePath = new File(IMAGE_CASH_DIR_PATH, "preview_" + id + ".jpg");
+        
+        if (this.getFavouritesMap().containsKey(id))
+        {
+            this.deleteFile(imgPreviewFilePath.toString());
+            this.getFavouritesMap().remove(id);
+            return false;
+        }
+        // Доп. требование ТЗ - "карточки избранных фильмов должны быть доступны офлайн"
+        // малый постер
+        try (var outStream = new FileOutputStream(imgPreviewFilePath))
+        {
+            convertDrawableToBitmap(image).compress(Bitmap.CompressFormat.JPEG, 80, outStream);
+        }
+        catch (IOException e)
+        {
+            Log.e(Constants.LOG_TAG, "Ошибка записи в файл", e);
+            Toast.makeText(this,"Что-то пошло не так: Ошибка записи в файл", Toast.LENGTH_SHORT).show();
+        }
+        final var curData = new ArrayList<>(cardData.entrySet());
+        curData.add(Map.entry(Constants.ADAPTER_IMAGE_PREVIEW_FILE_PATH, imgPreviewFilePath.toString()));
+        final var filmData = Map.ofEntries(curData.toArray(new Map.Entry[0]));
+        this.getFavouritesMap().put(id, cardData);
+        return true;
+    }
+    
+    /**
+     * Метод преобразования изображений из виджета в формат пригодный для записи в файл
+     *
+     * @implNote Альтернативный вариант - получать {@link Bitmap} из самого {@link ImageView#getDrawingCache()} (устаревшее)
+     * @see <a href="https://stackoverflow.com/a/34026527/2323972">Взято отсюда: How can I write a Drawable resource to a File</a>
+     */
+    public Bitmap convertDrawableToBitmap(Drawable pd)
+    {
+        Bitmap bm = Bitmap.createBitmap(pd.getIntrinsicWidth(), pd.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bm);
+        //canvas.drawPicture(pd.getPicture());
+        pd.draw(canvas);
+        return bm;
     }
     
     /**
@@ -473,7 +545,7 @@ public class MainActivity extends AppCompatActivity {
     {
         var popup = Snackbar.make(this.androidContentView, message, Snackbar.LENGTH_INDEFINITE);
         popup.setAction(R.string.repeat_button_caption, view -> {
-            var text  = Objects.requireNonNull(txtQuery.getText()).toString().replace("null", "");
+            var text = Objects.requireNonNull(txtQuery.getText()).toString().replace("null", "");
             this.startTopFilmsDownloadTask(_currentPageNumber);
             popup.dismiss();
         });
@@ -543,10 +615,10 @@ public class MainActivity extends AppCompatActivity {
      * Метод октрытия окна деталей о фильме
      *
      * @param kinoApiFilmId ИД фильма в API кинопоиска
-     * @param cardTitle Желаемый заголовок карточки
+     * @param cardTitle     Желаемый заголовок карточки
      */
     @NonNull
-    private void showFilmCardActivity(String kinoApiFilmId, String cardTitle)
+    public void showFilmCardActivity(String kinoApiFilmId, String cardTitle)
     {
         var switchActivityIntent = new Intent(getApplicationContext(), CardActivity.class);
         switchActivityIntent.putExtra(Constants.ADAPTER_TITLE, cardTitle);
