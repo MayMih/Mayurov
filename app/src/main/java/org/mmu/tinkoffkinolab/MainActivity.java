@@ -9,7 +9,6 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import android.content.Intent;
 import android.graphics.Bitmap;
-import android.graphics.Canvas;
 import android.graphics.drawable.Drawable;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -280,7 +279,7 @@ public class MainActivity extends AppCompatActivity
             }
             case R.id.action_refresh:
             {
-                refeshUIContent();
+                refreshUIContent();
                 break;
             }
             case R.id.action_go_to_top:
@@ -309,7 +308,7 @@ public class MainActivity extends AppCompatActivity
     private void setEventHandlers()
     {
         // обновляем страницу свайпом сверху
-        swipeRefreshContainer.setOnRefreshListener(this::refeshUIContent);
+        swipeRefreshContainer.setOnRefreshListener(this::refreshUIContent);
         // ищем текст по кнопке ВВОД на клавиатуре
         txtQuery.setOnEditorActionListener((v, actionId, event) -> {
             // N.B. Похоже, только для действия Done можно реализовать автоскрытие клавиатуры - при остальных клава остаётся на экране после клика
@@ -431,7 +430,7 @@ public class MainActivity extends AppCompatActivity
     /**
      * Метод перезагрузки содержимого страницы (списка фильмов)
      */
-    private void refeshUIContent()
+    private void refreshUIContent()
     {
         if (this._currentViewMode == ViewMode.POPULAR)
         {
@@ -466,6 +465,10 @@ public class MainActivity extends AppCompatActivity
             cardsContainer.addView(listItem);
             listItem.setOnClickListener(v -> showFilmCardActivity(id, title));
             final ImageView imgViewLike = listItem.findViewById(R.id.like_image_view);
+            if (getFavouritesMap().containsKey(id))
+            {
+                imgViewLike.setImageResource(R.drawable.baseline_favorite_24);
+            }
             final var likeButtonClickHandler = getOnLikeButtonClickListener(cardData, id, imgView, imgViewLike);
             imgViewLike.setOnClickListener(likeButtonClickHandler);
             listItem.setOnLongClickListener(v -> {
@@ -529,7 +532,7 @@ public class MainActivity extends AppCompatActivity
         // малый постер
         try (var outStream = new FileOutputStream(imgPreviewFilePath))
         {
-            convertDrawableToBitmap(image).compress(Bitmap.CompressFormat.JPEG, 80, outStream);
+            Utils.convertDrawableToBitmap(image).compress(Bitmap.CompressFormat.JPEG, 80, outStream);
         }
         catch (IOException e)
         {
@@ -541,20 +544,6 @@ public class MainActivity extends AppCompatActivity
         final var filmData = Map.ofEntries(curData.toArray(new Map.Entry[0]));
         this.getFavouritesMap().put(id, cardData);
         return true;
-    }
-    
-    /**
-     * Метод преобразования изображений из виджета в формат пригодный для записи в файл
-     *
-     * @implNote Альтернативный вариант - получать {@link Bitmap} из самого {@link ImageView#getDrawingCache()} (устаревшее)
-     * @see <a href="https://stackoverflow.com/a/34026527/2323972">Взято отсюда: How can I write a Drawable resource to a File</a>
-     */
-    public Bitmap convertDrawableToBitmap(Drawable pd)
-    {
-        Bitmap bm = Bitmap.createBitmap(pd.getIntrinsicWidth(), pd.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
-        Canvas canvas = new Canvas(bm);
-        pd.draw(canvas);
-        return bm;
     }
     
     /**

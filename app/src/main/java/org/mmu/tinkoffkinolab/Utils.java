@@ -2,7 +2,10 @@ package org.mmu.tinkoffkinolab;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.drawable.Drawable;
 import android.util.Log;
+import android.widget.ImageView;
 
 import java.io.BufferedInputStream;
 import java.io.InputStream;
@@ -34,6 +37,20 @@ public class Utils
         {
             Log.e(Constants.LOG_TAG, "Error getting bitmap", e);
         }
+        return bm;
+    }
+    
+    /**
+     * Метод преобразования изображений из виджета в формат пригодный для записи в файл
+     *
+     * @implNote Альтернативный вариант - получать {@link Bitmap} из самого {@link ImageView#getDrawingCache()} (устаревшее)
+     * @see <a href="https://stackoverflow.com/a/34026527/2323972">Взято отсюда: How can I write a Drawable resource to a File</a>
+     */
+    public static Bitmap convertDrawableToBitmap(Drawable pd)
+    {
+        Bitmap bm = Bitmap.createBitmap(pd.getIntrinsicWidth(), pd.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bm);
+        pd.draw(canvas);
         return bm;
     }
 }
