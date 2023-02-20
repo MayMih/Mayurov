@@ -1,6 +1,8 @@
 package org.mmu.tinkoffkinolab;
 
 
+import android.text.TextWatcher;
+
 public class Constants
 {
     public static final String ADAPTER_FILM_ID = "ID";
@@ -11,7 +13,7 @@ public class Constants
     public static final String LOG_TAG = MainActivity.class.getSimpleName();
     public static final String FAVOURITES_LIST_FILENAME = "favourites.txt";
     /**
-     * Демо-ключ неофициального API Книнопоиска
+     * Демо-ключ неофициального API Кинопоиска
      *
      * @see <a href="https://kinopoiskapiunofficial.tech/">Kinopoisk Api Unofficial</a>
      *
@@ -28,6 +30,9 @@ public class Constants
     
     enum TopFilmsType
     {
+        /**
+         * Почему-то загружает ТОП-700 (а не 100 фильмов?!)
+         */
         TOP_100_POPULAR_FILMS,
         TOP_250_BEST_FILMS,
         TOP_AWAIT_FILMS

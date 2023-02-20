@@ -3,19 +3,19 @@ package org.mmu.tinkoffkinolab;
 import static org.mmu.tinkoffkinolab.Constants.*;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
-import androidx.core.graphics.drawable.RoundedBitmapDrawable;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import android.content.Intent;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Debug;
+import android.os.Handler;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
@@ -163,7 +163,9 @@ public class MainActivity extends AppCompatActivity
     
     //region 'Поля и константы'
     private static final List<Map<String, String>> _cardList = new ArrayList<>();
-    private static File _imageCacheDirPath;
+    public static TextWatcher _textWatcher;
+    private File _imageCacheDirPath;
+    private AlertDialog _confirmClearDialog;
     
     private boolean isRus;
     private MaterialToolbar customToolBar;
@@ -189,8 +191,13 @@ public class MainActivity extends AppCompatActivity
     private ViewMode _currentViewMode;
     private LayoutInflater _layoutInflater;
     private boolean _isFiltered;
+    private int _lastListViewPos;
+    private int _lastListViewPos2;
+    
+    private View scroller;
     
     //endregion 'Поля и константы'
+    
     
     
     
@@ -212,7 +219,6 @@ public class MainActivity extends AppCompatActivity
     
     //endregion 'Свойства'
     
-
     
     //region 'Обработчики'
     
@@ -249,10 +255,19 @@ public class MainActivity extends AppCompatActivity
         swipeRefreshContainer = findViewById(R.id.film_list_swipe_refresh_container);
         swipeRefreshContainer.setColorSchemeResources(R.color.biz, R.color.neo, R.color.neo_dark, R.color.purple_light);
         _imageCacheDirPath = new File(this.getCacheDir(), Constants.FAVOURITES_CASH_DIR_NAME);
+        _confirmClearDialog = new AlertDialog.Builder(this)
+                .setIcon(R.drawable.round_warning_amber_24)
+                .setTitle(R.string.confirm_dialog_title).setMessage(R.string.confirm_clear_dialog_text)
+                .setNegativeButton(android.R.string.no, null)
+                .setPositiveButton(android.R.string.yes, (dialog, which) -> {
+                    clearList(false);
+                })
+                .create();
+        scroller = findViewById(R.id.card_scroller);
         
-        this.setEventHandlers();
+        this._initEventHandlers();
         
-        switchUIToPopularFilmsAsync(true);
+        switchUIToPopularFilmsAsync(true, true);
         Log.w(LOG_TAG, "End of onCreate() method ---------------------");
     }
     
@@ -307,7 +322,7 @@ public class MainActivity extends AppCompatActivity
             }
             case R.id.action_switch_to_popular:
             {
-                switchUIToPopularFilmsAsync(true);
+                switchUIToPopularFilmsAsync(false, false);
                 break;
             }
             case R.id.action_refresh:
@@ -320,6 +335,18 @@ public class MainActivity extends AppCompatActivity
                 swipeRefreshContainer.getChildAt(0).scrollTo(0, 0);
                 break;
             }
+            case R.id.action_clear_list:
+            {
+                if (_currentViewMode == ViewMode.FAVOURITES && !_favouritesMap.isEmpty())
+                {
+                    _confirmClearDialog.show();
+                }
+                else
+                {
+                    clearList(false);
+                }
+                break;
+            }
             default:
             {
                 Log.w(LOG_TAG, "Неизвестная команда меню!");
@@ -328,6 +355,7 @@ public class MainActivity extends AppCompatActivity
         }
         return super.onOptionsItemSelected(item);
     }
+    
     
     @NonNull
     private View.OnClickListener getOnLikeButtonClickListener(Map<String, String> cardData, String id,
@@ -353,6 +381,67 @@ public class MainActivity extends AppCompatActivity
         };
     }
     
+    /**
+     * Обработчик прокрутки списка фильмов до конца - подгружает новую "страницу" в конец списка топов
+     */
+    private void onScrollChange(View v, int scrollX, int scrollY, int oldScrollX, int oldScrollY)
+    {
+        boolean isBottomReached = cardsContainer.getBottom() - v.getBottom() - scrollY == 0;
+        if (isBottomReached)
+        {
+            if (_currentViewMode == ViewMode.POPULAR && _currentPageNumber < _topFilmsPagesCount)
+            {
+                switchUIToPopularFilmsAsync(false, true);
+            }
+        }
+        else if (scrollY > 20)
+        {
+            inputPanel.setCardElevation(10 * getResources().getDisplayMetrics().density);
+        }
+        else if (scrollY == 0)
+        {
+            inputPanel.setCardElevation(0);
+        }
+    }
+    
+    /**
+     * Обработчик изменения текста в виджете Поиска
+     */
+    @NonNull
+    private TextWatcher getSearchTextChangeWatcher()
+    {
+        if (_textWatcher == null)
+        {
+            _textWatcher = new TextWatcher()
+            {
+                @Override
+                public void beforeTextChanged(CharSequence s, int start, int count, int after)
+                {
+                }
+    
+                @Override
+                public void onTextChanged(CharSequence s, int start, int before, int count)
+                {
+                }
+    
+                @Override
+                public void afterTextChanged(Editable s)
+                {
+                    final var query = s.toString();
+                    if (query.isBlank())
+                    {
+                        showFilmCardsUI();
+                    }
+                    else
+                    {
+                        filterFilmCardsUI(s.toString());
+                    }
+                }
+            };
+        }
+        return _textWatcher;
+    }
+    
     //endregion 'Обработчики'
     
     
@@ -363,7 +452,7 @@ public class MainActivity extends AppCompatActivity
     /**
      * Метод настройки событий виджетов
      */
-    private void setEventHandlers()
+    private void _initEventHandlers()
     {
         // обновляем страницу свайпом сверху
         swipeRefreshContainer.setOnRefreshListener(this::refreshUIContent);
@@ -372,56 +461,14 @@ public class MainActivity extends AppCompatActivity
             // N.B. Похоже, только для действия Done можно реализовать автоскрытие клавиатуры - при остальных клава остаётся на экране после клика
             if (actionId == EditorInfo.IME_ACTION_DONE || actionId == EditorInfo.IME_ACTION_GO || actionId == EditorInfo.IME_ACTION_SEARCH)
             {
-                Toast.makeText(this, "Фильтрация ещё не реализована!", Toast.LENGTH_SHORT).show();
                 return false;
             }
             return true;
         });
         // Обработчик изменения текста в поисковом контроле
-        txtQuery.addTextChangedListener(new TextWatcher()
-        {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after)
-            {
-            }
-            
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count)
-            {
-            }
-            
-            @Override
-            public void afterTextChanged(Editable s)
-            {
-                final var query = s.toString();
-                if (query.isBlank())
-                {
-                    showFilmCardsUI();
-                }
-                else
-                {
-                    filterFilmCardsUI(s.toString());
-                }
-            }
-        });
+        txtQuery.addTextChangedListener(getSearchTextChangeWatcher());
         // при прокрутке списка фильмов до конца подгружаем следующую страницу результатов (если есть)
-        final var scroller = findViewById(R.id.card_scroller);
-        scroller.setOnScrollChangeListener((v, scrollX, scrollY, oldScrollX, oldScrollY) ->
-        {
-            boolean isBottomReached = cardsContainer.getBottom() - v.getBottom() - scrollY == 0;
-            if (isBottomReached && this._currentViewMode == ViewMode.POPULAR && _currentPageNumber < _topFilmsPagesCount)
-            {
-                switchUIToPopularFilmsAsync(false);
-            }
-            else if (scrollY > 20)
-            {
-                inputPanel.setCardElevation(10 * getResources().getDisplayMetrics().density);
-            }
-            else if (scrollY == 0)
-            {
-                inputPanel.setCardElevation(0);
-            }
-        });
+        scroller.setOnScrollChangeListener(this::onScrollChange);
     }
     
     /**
@@ -492,11 +539,16 @@ public class MainActivity extends AppCompatActivity
     {
         if (this._currentViewMode == ViewMode.POPULAR)
         {
-            switchUIToPopularFilmsAsync(true);
+            switchUIToPopularFilmsAsync(true, true);
         }
         else if (this._currentViewMode == ViewMode.FAVOURITES)
         {
-            switchUIToFavouriteFilms();
+            cardsContainer.setVisibility(View.INVISIBLE);
+            switchUIToFavouriteFilms(true);
+            cardsContainer.postDelayed(() -> {
+                swipeRefreshContainer.setRefreshing(false);
+                cardsContainer.setVisibility(View.VISIBLE);
+            }, 100);
         }
     }
     
@@ -560,7 +612,6 @@ public class MainActivity extends AppCompatActivity
      * @param cardData Список данных о фильме (пары ключ-значение)
      * @param image    миниПостер фильма для сохранения в кэше (по ТЗ)
      * @return True - фильм добавлен в список Избранного, False - удалён из него.
-     *
      * @implSpec TODO: Возможно стоит уводить метод в отдельный поток, на случай если запись файла будет длиться дольше 5 секунд!
      */
     private boolean addToOrRemoveFromFavourites(String id, Map<String, String> cardData, Drawable image)
@@ -589,12 +640,11 @@ public class MainActivity extends AppCompatActivity
         catch (IOException e)
         {
             Log.e(LOG_TAG, "Ошибка записи в файл", e);
-            Toast.makeText(this,"Что-то пошло не так: Ошибка записи в файл", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Что-то пошло не так: Ошибка записи в файл", Toast.LENGTH_SHORT).show();
         }
         final var curData = new ArrayList<>(cardData.entrySet());
         curData.add(Map.entry(Constants.ADAPTER_IMAGE_PREVIEW_FILE_PATH, imgPreviewFilePath.toString()));
-        @SuppressWarnings("unchecked")
-        final Map<String, String> filmData = Map.ofEntries(curData.toArray(new Map.Entry[0]));
+        @SuppressWarnings("unchecked") final Map<String, String> filmData = Map.ofEntries(curData.toArray(new Map.Entry[0]));
         this.getFavouritesMap().put(id, filmData);
         return true;
     }
@@ -639,43 +689,82 @@ public class MainActivity extends AppCompatActivity
     /**
      * Метод показа ТОП-100 популярных фильмов - асинхронно загружает список фильмов из Сети
      *
-     * @param isClearBeforeShow если True, текущий список очищается и показ начинается с первой страницы
+     * @param beginFromPageOne если True, текущий список очищается и показ начинается с первой страницы
      */
-    private void switchUIToPopularFilmsAsync(boolean isClearBeforeShow)
+    private void switchUIToPopularFilmsAsync(boolean beginFromPageOne, boolean downloadNew)
     {
-        if (isClearBeforeShow)
-        {
-            _currentPageNumber = 1;
-            clearLists();
-        }
-        if (_currentViewMode != ViewMode.POPULAR)
-        {
-            _currentViewMode = ViewMode.POPULAR;
-            customToolBar.setTitle(R.string.action_popular_title);
-            swipeRefreshContainer.setEnabled(true);
-        }
-        this.startTopFilmsDownloadTask(_currentPageNumber);
-    }
-    
-    /**
-     * Метода показа Избранных фильмов
-     */
-    private void switchUIToFavouriteFilms()
-    {
-        if (_currentViewMode == ViewMode.FAVOURITES)
+        if (_currentViewMode == ViewMode.POPULAR && !downloadNew)
         {
             return;
         }
-        swipeRefreshContainer.setEnabled(false);
-        _currentViewMode = ViewMode.FAVOURITES;
-        clearLists();
-        customToolBar.setTitle(R.string.action_favourites_title);
-        fillCardListUIFrom(0, new ArrayList<>(getFavouritesMap().values()));
+        _currentViewMode = ViewMode.POPULAR;
+        customToolBar.setTitle(R.string.action_popular_title);
+    
+        _lastListViewPos2 = scroller.getScrollY();
+        
+        if (!downloadNew)
+        {
+            clearList(!beginFromPageOne);
+        }
+        if (beginFromPageOne)
+        {
+            _currentPageNumber = 1;
+        }
+        if (downloadNew)
+        {
+            this.startTopFilmsDownloadTask(_currentPageNumber);
+        }
+        else
+        {
+            fillCardListUIFrom(0, _cardList);
+            // на основе кода отсюда: https://stackoverflow.com/a/3263540/2323972
+            scroller.post(() -> scroller.scrollTo(0, _lastListViewPos));
+        }
     }
     
-    private void clearLists()
+    private void switchUIToFavouriteFilms()
     {
-        _cardList.clear();
+        switchUIToFavouriteFilms(false);
+    }
+    /**
+     * Метода показа Избранных фильмов
+     */
+    private void switchUIToFavouriteFilms(boolean forceRefresh)
+    {
+        if (!forceRefresh && _currentViewMode == ViewMode.FAVOURITES)
+        {
+            return;
+        }
+        if (!forceRefresh)
+        {
+            _lastListViewPos = scroller.getScrollY();
+        }
+        _currentViewMode = ViewMode.FAVOURITES;
+        clearList(true);
+        customToolBar.setTitle(R.string.action_favourites_title);
+        if (!getFavouritesMap().isEmpty())
+        {
+            fillCardListUIFrom(0, new ArrayList<>(getFavouritesMap().values()));
+            if (!forceRefresh)
+            {
+                scroller.post(() -> scroller.scrollTo(0, _lastListViewPos2));
+            }
+        }
+    }
+    
+    private void clearList(boolean uiOnly)
+    {
+        if (!uiOnly)
+        {
+            if (_currentViewMode == ViewMode.FAVOURITES)
+            {
+                _favouritesMap.clear();
+            }
+            else if (_currentViewMode == ViewMode.POPULAR)
+            {
+                _cardList.clear();
+            }
+        }
         cardsContainer.removeAllViews();
     }
     
@@ -686,7 +775,7 @@ public class MainActivity extends AppCompatActivity
      * @param cardTitle     Желаемый заголовок карточки
      */
     @NonNull
-    public void showFilmCardActivity(String kinoApiFilmId, String cardTitle)
+    private void showFilmCardActivity(String kinoApiFilmId, String cardTitle)
     {
         var switchActivityIntent = new Intent(getApplicationContext(), CardActivity.class);
         switchActivityIntent.putExtra(Constants.ADAPTER_TITLE, cardTitle);
