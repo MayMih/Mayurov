@@ -51,6 +51,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import io.swagger.client.ApiException;
 import io.swagger.client.api.FilmsApi;
@@ -346,6 +347,7 @@ public class MainActivity extends AppCompatActivity
             }
             case R.id.action_refresh:
             {
+                Objects.requireNonNull(txtQuery.getText()).clear();
                 refreshUIContent();
                 break;
             }
@@ -406,7 +408,7 @@ public class MainActivity extends AppCompatActivity
     private void onScrollChange(View v, int scrollX, int scrollY, int oldScrollX, int oldScrollY)
     {
         boolean isBottomReached = cardsContainer.getBottom() - v.getBottom() - scrollY == 0;
-        if (isBottomReached)
+        if (isBottomReached && !_isFiltered)
         {
             if (_currentViewMode == ViewMode.POPULAR && _currentPageNumber < _topFilmsPagesCount)
             {
@@ -453,7 +455,9 @@ public class MainActivity extends AppCompatActivity
                     }
                     else
                     {
-                        filterFilmCardsUI(s.toString());
+                        filterFilmCardsUI(s.toString(), _currentViewMode == ViewMode.FAVOURITES ?
+                                getFavouritesMap().values().stream() : _currentViewMode == ViewMode.POPULAR ?
+                                _cardList.stream() : Stream.empty());
                     }
                 }
             };
@@ -493,7 +497,7 @@ public class MainActivity extends AppCompatActivity
     /**
      * Метод показа (вывода из невидимости) всех карточек фильмов
      *
-     * @apiNote Вызов имеет смысл, только если перед этим был вызов {@link #filterFilmCardsUI(String)}
+     * @apiNote Вызов имеет смысл, только если перед этим был вызов {@link #filterFilmCardsUI(String, Stream)} )}
      * @implNote Сбрасывает признак фильтрации списка {@link #_isFiltered}
      */
     private void showFilmCardsUI()
@@ -515,17 +519,17 @@ public class MainActivity extends AppCompatActivity
      * @apiNote Метод не выдаёт совпадения для слов короче 3-х символов (для исключения предлогов)
      * @implSpec При пустом <code>query</code> не делает НИЧЕГО - для отмены фильтра используйте {@link #showFilmCardsUI()}
      */
-    private void filterFilmCardsUI(String query)
+    private void filterFilmCardsUI(String query, Stream<Map<String, String>> cardStream)
     {
         if (query.isBlank())
         {
             return;
         }
-        final var foundFilms = _cardList.stream().filter(x -> {
-                    final var words = Arrays.stream(Objects.requireNonNull(x.get(Constants.ADAPTER_TITLE)).split(" "));
-                    return words.anyMatch(t -> t.length() > 2 && t.toLowerCase().startsWith(query.strip().toLowerCase()));
-                })
-                .collect(Collectors.toList());
+        final var foundFilms = cardStream.filter(x -> {
+            final var words = Arrays.stream(Objects.requireNonNull(x.get(Constants.ADAPTER_TITLE)).split(" "));
+            return words.anyMatch(t -> t.length() > 2 && t.toLowerCase().startsWith(query.strip().toLowerCase()));
+        })
+        .collect(Collectors.toList());
         
         for (int i = 0; i < cardsContainer.getChildCount(); i++)
         {
@@ -556,6 +560,7 @@ public class MainActivity extends AppCompatActivity
      */
     private void refreshUIContent()
     {
+        Objects.requireNonNull(txtQuery.getText()).clear();
         if (this._currentViewMode == ViewMode.POPULAR)
         {
             switchUIToPopularFilmsAsync(true, true);
@@ -740,8 +745,16 @@ public class MainActivity extends AppCompatActivity
         else
         {
             fillCardListUIFrom(0, _cardList);
-            // на основе кода отсюда: https://stackoverflow.com/a/3263540/2323972
-            scroller.post(() -> scroller.scrollTo(0, _lastListViewPos));
+            final var query = Objects.requireNonNull(txtQuery.getText()).toString();
+            if (query.isBlank())
+            {
+                // на основе кода отсюда: https://stackoverflow.com/a/3263540/2323972
+                scroller.post(() -> scroller.scrollTo(0, _lastListViewPos));
+            }
+            else
+            {
+                filterFilmCardsUI(query, _cardList.stream());
+            }
         }
     }
     
@@ -768,7 +781,12 @@ public class MainActivity extends AppCompatActivity
         if (!getFavouritesMap().isEmpty())
         {
             fillCardListUIFrom(0, new ArrayList<>(getFavouritesMap().values()));
-            if (!forceRefresh)
+            final var query = Objects.requireNonNull(txtQuery.getText()).toString();
+            if (!query.isBlank())
+            {
+                filterFilmCardsUI(query, getFavouritesMap().values().stream());
+            }
+            else if (!forceRefresh)
             {
                 scroller.post(() -> scroller.scrollTo(0, _lastListViewPos2));
             }
