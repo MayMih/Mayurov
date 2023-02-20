@@ -15,7 +15,6 @@ import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Debug;
-import android.os.Handler;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
@@ -35,8 +34,12 @@ import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.textfield.TextInputEditText;
 import com.squareup.picasso.Picasso;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.AbstractMap;
 import java.util.ArrayList;
@@ -105,9 +108,10 @@ public class MainActivity extends AppCompatActivity
                     }
                     final var id = String.valueOf(filmData.getFilmId());
                     Optional<String> name = Optional.ofNullable(isRus ? filmData.getNameRu() : filmData.getNameEn());
-                    _cardList.add(Map.of(Constants.ADAPTER_TITLE, name.orElse(id),
+                    _cardList.add(Map.of(Constants.ADAPTER_FILM_ID, id,
+                            Constants.ADAPTER_TITLE, name.orElse(id),
                             Constants.ADAPTER_CONTENT, filmData.getGenres().get(0).getGenre() + " (" + filmData.getYear() + ")",
-                            Constants.ADAPTER_FILM_ID, id, Constants.ADAPTER_POSTER_PREVIEW_URL, filmData.getPosterUrlPreview())
+                            Constants.ADAPTER_POSTER_PREVIEW_URL, filmData.getPosterUrlPreview())
                     );
                 }
             }
@@ -161,11 +165,12 @@ public class MainActivity extends AppCompatActivity
     
     
     
+    
     //region 'Поля и константы'
     private static final List<Map<String, String>> _cardList = new ArrayList<>();
-    public static TextWatcher _textWatcher;
+    public TextWatcher _textWatcher;
+    public File _favouritesListFilePath;
     private File _imageCacheDirPath;
-    private AlertDialog _confirmClearDialog;
     
     private boolean isRus;
     private MaterialToolbar customToolBar;
@@ -203,21 +208,44 @@ public class MainActivity extends AppCompatActivity
     
     //region 'Свойства'
     
-    private Map<String, Map<String, String>> _favouritesMap;
+    private Map<String, Map<String, String>> favouritesMap;
     
     /**
      * Возвращает список избранных фильмов
+     *
+     * @implSpec ВНИМАНИЕ: ИД фильма должен идти первой строчкой, иначе метод загрузки из файла не будет
+     *          работать корректно ({@link #loadFavouritesList()})
      */
     public Map<String, Map<String, String>> getFavouritesMap()
     {
-        if (_favouritesMap == null)
+        if (favouritesMap == null)
         {
-            _favouritesMap = new HashMap<>();
+            favouritesMap = new HashMap<>();
         }
-        return _favouritesMap;
+        return favouritesMap;
+    }
+    
+    private AlertDialog confirmClearDialog;
+    
+    public AlertDialog getConfirmClearDialog()
+    {
+        if (confirmClearDialog == null)
+        {
+            confirmClearDialog = new AlertDialog.Builder(this)
+                    .setIcon(R.drawable.round_warning_amber_24)
+                    .setTitle(R.string.confirm_dialog_title).setMessage(R.string.confirm_clear_dialog_text)
+                    .setNegativeButton(android.R.string.no, null)
+                    .setPositiveButton(android.R.string.yes, (dialog, which) -> {
+                        clearList(false);
+                    })
+                    .create();
+        }
+        return confirmClearDialog;
     }
     
     //endregion 'Свойства'
+    
+    
     
     
     //region 'Обработчики'
@@ -237,7 +265,11 @@ public class MainActivity extends AppCompatActivity
         setContentView(R.layout.activity_main);
         customToolBar = findViewById(R.id.top_toolbar);
         this.setSupportActionBar(customToolBar);
-        
+        _favouritesListFilePath = new File(this.getFilesDir(), FAVOURITES_LIST_FILE_NAME);
+        if (_favouritesListFilePath.exists())
+        {
+            loadFavouritesList();
+        }
         if (Debug.isDebuggerConnected())
         {
             Picasso.get().setIndicatorsEnabled(true);
@@ -255,14 +287,6 @@ public class MainActivity extends AppCompatActivity
         swipeRefreshContainer = findViewById(R.id.film_list_swipe_refresh_container);
         swipeRefreshContainer.setColorSchemeResources(R.color.biz, R.color.neo, R.color.neo_dark, R.color.purple_light);
         _imageCacheDirPath = new File(this.getCacheDir(), Constants.FAVOURITES_CASH_DIR_NAME);
-        _confirmClearDialog = new AlertDialog.Builder(this)
-                .setIcon(R.drawable.round_warning_amber_24)
-                .setTitle(R.string.confirm_dialog_title).setMessage(R.string.confirm_clear_dialog_text)
-                .setNegativeButton(android.R.string.no, null)
-                .setPositiveButton(android.R.string.yes, (dialog, which) -> {
-                    clearList(false);
-                })
-                .create();
         scroller = findViewById(R.id.card_scroller);
         
         this._initEventHandlers();
@@ -280,9 +304,9 @@ public class MainActivity extends AppCompatActivity
     protected void onSaveInstanceState(@NonNull Bundle outState)
     {
         super.onSaveInstanceState(outState);
-        if (_favouritesMap.isEmpty())
+        if (favouritesMap == null || favouritesMap.isEmpty())
         {
-            this.deleteFile(Constants.FAVOURITES_LIST_FILENAME);
+            this.deleteFile(Constants.FAVOURITES_LIST_FILE_NAME);
             if (_imageCacheDirPath.exists())
             {
                 //noinspection ResultOfMethodCallIgnored
@@ -295,11 +319,6 @@ public class MainActivity extends AppCompatActivity
             saveFavouritesList();
         }
         Log.d(LOG_TAG, "-------------------------- состояние сохранено! ----------------");
-    }
-    
-    private void saveFavouritesList()
-    {
-    
     }
     
     @Override
@@ -337,9 +356,9 @@ public class MainActivity extends AppCompatActivity
             }
             case R.id.action_clear_list:
             {
-                if (_currentViewMode == ViewMode.FAVOURITES && !_favouritesMap.isEmpty())
+                if (_currentViewMode == ViewMode.FAVOURITES && !favouritesMap.isEmpty())
                 {
-                    _confirmClearDialog.show();
+                    this.getConfirmClearDialog().show();
                 }
                 else
                 {
@@ -689,11 +708,11 @@ public class MainActivity extends AppCompatActivity
     /**
      * Метод показа ТОП-100 популярных фильмов - асинхронно загружает список фильмов из Сети
      *
-     * @param beginFromPageOne если True, текущий список очищается и показ начинается с первой страницы
+     * @param ifBeginFromPageOne если True, текущий список очищается и показ начинается с первой страницы
      */
-    private void switchUIToPopularFilmsAsync(boolean beginFromPageOne, boolean downloadNew)
+    private void switchUIToPopularFilmsAsync(boolean ifBeginFromPageOne, boolean isDownloadNew)
     {
-        if (_currentViewMode == ViewMode.POPULAR && !downloadNew)
+        if (_currentViewMode == ViewMode.POPULAR && !isDownloadNew)
         {
             return;
         }
@@ -702,15 +721,19 @@ public class MainActivity extends AppCompatActivity
     
         _lastListViewPos2 = scroller.getScrollY();
         
-        if (!downloadNew)
+        if (ifBeginFromPageOne && isDownloadNew)
         {
-            clearList(!beginFromPageOne);
+            clearList(false);
         }
-        if (beginFromPageOne)
+        else if (!isDownloadNew)
+        {
+            clearList(!ifBeginFromPageOne);
+        }
+        if (ifBeginFromPageOne)
         {
             _currentPageNumber = 1;
         }
-        if (downloadNew)
+        if (isDownloadNew)
         {
             this.startTopFilmsDownloadTask(_currentPageNumber);
         }
@@ -758,7 +781,7 @@ public class MainActivity extends AppCompatActivity
         {
             if (_currentViewMode == ViewMode.FAVOURITES)
             {
-                _favouritesMap.clear();
+                favouritesMap.clear();
             }
             else if (_currentViewMode == ViewMode.POPULAR)
             {
@@ -781,6 +804,69 @@ public class MainActivity extends AppCompatActivity
         switchActivityIntent.putExtra(Constants.ADAPTER_TITLE, cardTitle);
         switchActivityIntent.putExtra(Constants.ADAPTER_FILM_ID, kinoApiFilmId);
         startActivity(switchActivityIntent);
+    }
+    
+    /**
+     * Метод загрузки списка Избранных фильмов из файла {@link Constants#FAVOURITES_LIST_FILE_NAME}
+     */
+    private void loadFavouritesList()
+    {
+        final var tempValuesMap = new HashMap<String, String>();
+        try (var fr = new BufferedReader(new FileReader(_favouritesListFilePath));
+             var fileLines = fr.lines())
+        {
+            fileLines.forEach(line -> {
+                if (line.equalsIgnoreCase(FILM_END_TOKEN))
+                {
+                    getFavouritesMap().put(tempValuesMap.get(ADAPTER_FILM_ID), Map.copyOf(tempValuesMap));
+                    tempValuesMap.clear();
+                }
+                else if (!line.equalsIgnoreCase(FILM_START_TOKEN))
+                {
+                    final var pair = line.split(KEY_VALUE_SEPARATOR);
+                    tempValuesMap.put(pair[0], pair[1]);
+                }
+            });
+        }
+        catch (IOException | RuntimeException e)
+        {
+            Log.e(LOG_TAG,"Ошибка чтения файла: " + FAVOURITES_LIST_FILE_NAME, e);
+            Toast.makeText(this,"Не удалось прочитать файл Избранного!", Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    /**
+     * Метод записи файла со списком Избранного (путь: {@link Constants#FAVOURITES_LIST_FILE_NAME})
+     */
+    private void saveFavouritesList()
+    {
+        try (BufferedWriter fw = new BufferedWriter(new FileWriter(_favouritesListFilePath)))
+        {
+            favouritesMap.forEach((id, filmData) -> {
+                try
+                {
+                    fw.write(Constants.FILM_START_TOKEN);
+                    fw.write(System.lineSeparator());
+                    for (var entry : filmData.entrySet())
+                    {
+                        fw.write(entry.getKey());
+                        fw.write(KEY_VALUE_SEPARATOR);
+                        fw.write(entry.getValue());
+                        fw.write(System.lineSeparator());
+                    }
+                    fw.write(Constants.FILM_END_TOKEN);
+                    fw.write(System.lineSeparator());
+                }
+                catch (IOException e)
+                {
+                    throw new RuntimeException(e);
+                }
+            });
+        }
+        catch (IOException | RuntimeException e)
+        {
+            Log.e(LOG_TAG,"Ошибка записи файла: " + _favouritesListFilePath.toString(), e);
+        }
     }
     
     //endregion 'Методы'

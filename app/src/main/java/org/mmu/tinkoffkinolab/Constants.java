@@ -1,8 +1,6 @@
 package org.mmu.tinkoffkinolab;
 
 
-import android.text.TextWatcher;
-
 public class Constants
 {
     public static final String ADAPTER_FILM_ID = "ID";
@@ -11,7 +9,10 @@ public class Constants
     public static final String ADAPTER_IMAGE_PREVIEW_FILE_PATH = "preview_file_path";
     public static final String FAVOURITES_CASH_DIR_NAME = "favourites_image_cache";
     public static final String LOG_TAG = MainActivity.class.getSimpleName();
-    public static final String FAVOURITES_LIST_FILENAME = "favourites.txt";
+    public static final String FAVOURITES_LIST_FILE_NAME = "favourites.txt";
+    public static final String KEY_VALUE_SEPARATOR = "=";
+    public static final String FILM_START_TOKEN = "{";
+    public static final String FILM_END_TOKEN = "}";
     /**
      * Демо-ключ неофициального API Кинопоиска
      *
