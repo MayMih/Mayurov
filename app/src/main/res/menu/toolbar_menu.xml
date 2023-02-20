@@ -13,8 +13,17 @@
         android:title="@string/action_popular_title"
         app:showAsAction="ifRoom" />
     <item
+        android:id="@+id/action_go_to_top"
+        android:icon="@android:drawable/arrow_up_float"
+        android:title="@string/action_go_to_top_title"
+        app:showAsAction="ifRoom" />
+    <item
         android:id="@+id/action_refresh"
         android:icon="@android:drawable/ic_menu_rotate"
         android:title="@string/action_refresh_title"
+        app:showAsAction="ifRoom"/>
+    <item
+        android:id="@+id/action_clear_list"
+        android:title="@string/action_clear_title"
         app:showAsAction="never"/>
 </menu>

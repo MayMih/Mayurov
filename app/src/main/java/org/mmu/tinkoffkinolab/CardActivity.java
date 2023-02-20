@@ -1,14 +1,14 @@
 package org.mmu.tinkoffkinolab;
 
-import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.RoundedCorner;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.material.appbar.MaterialToolbar;
@@ -23,7 +23,6 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 import io.swagger.client.ApiException;
-import io.swagger.client.StringUtil;
 import io.swagger.client.api.FilmsApi;
 
 public class CardActivity extends AppCompatActivity
@@ -134,6 +133,9 @@ public class CardActivity extends AppCompatActivity
     
     
     
+    
+    //region 'Обработчики'
+    
     @Override
     protected void onCreate(Bundle savedInstanceState)
     {
@@ -154,6 +156,28 @@ public class CardActivity extends AppCompatActivity
         filmId = getIntent().getStringExtra(Constants.ADAPTER_FILM_ID);
         getFilmDataAsync();
     }
+    
+    /**
+     * Обработчик нажатия кнопки меню Назад
+     *
+     * @implNote Без этого Кнопка "Назад" игнорирует сохранённое состояние виджетов MainActivity
+     * @param item The menu item that was selected.
+     * @see <a href="https://stackoverflow.com/a/27807976/2323972">Взято отсюда: If you want
+     *      ActionBar back button behave same way as hardware back button</a>
+     */
+    @Override
+    public boolean onOptionsItemSelected(@NonNull MenuItem item)
+    {
+        if (item.getItemId() == android.R.id.home)
+        {
+            onBackPressed();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+    
+    //endregion 'Обработчики'
+    
     
     
     

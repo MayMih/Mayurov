@@ -1,13 +1,20 @@
 package org.mmu.tinkoffkinolab;
 
+
 public class Constants
 {
     public static final String ADAPTER_FILM_ID = "ID";
     public static final String ADAPTER_TITLE = "Title";
     public static final String ADAPTER_CONTENT = "Content";
-    static final String LOG_TAG = MainActivity.class.getSimpleName();
+    public static final String ADAPTER_IMAGE_PREVIEW_FILE_PATH = "preview_file_path";
+    public static final String FAVOURITES_CASH_DIR_NAME = "favourites_image_cache";
+    public static final String LOG_TAG = MainActivity.class.getSimpleName();
+    public static final String FAVOURITES_LIST_FILE_NAME = "favourites.txt";
+    public static final String KEY_VALUE_SEPARATOR = "=";
+    public static final String FILM_START_TOKEN = "{";
+    public static final String FILM_END_TOKEN = "}";
     /**
-     * Демо-ключ неофициального API Книнопоиска
+     * Демо-ключ неофициального API Кинопоиска
      *
      * @see <a href="https://kinopoiskapiunofficial.tech/">Kinopoisk Api Unofficial</a>
      *
@@ -24,6 +31,9 @@ public class Constants
     
     enum TopFilmsType
     {
+        /**
+         * Почему-то загружает ТОП-700 (а не 100 фильмов?!)
+         */
         TOP_100_POPULAR_FILMS,
         TOP_250_BEST_FILMS,
         TOP_AWAIT_FILMS

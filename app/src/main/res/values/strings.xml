@@ -6,4 +6,8 @@
     <string name="repeat_button_caption">Repeat</string>
     <string name="filmposter_image_alt_text">FilmPoster</string>
     <string name="action_refresh_title">Refrersh</string>
+    <string name="action_go_to_top_title">Go to top of the list</string>
+    <string name="action_clear_title">Clear All</string>
+    <string name="confirm_clear_dialog_text">Are you sure want to delete all items?</string>
+    <string name="confirm_dialog_title">Confirmation</string>
 </resources>

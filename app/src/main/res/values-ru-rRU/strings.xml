@@ -6,4 +6,8 @@
     <string name="repeat_button_caption">Повторить</string>
     <string name="filmposter_image_alt_text">Здесь должен быть постер</string>
     <string name="action_refresh_title">Обновить</string>
+    <string name="action_go_to_top_title">Перейти в начало списка</string>
+    <string name="action_clear_title">Очистить список</string>
+    <string name="confirm_clear_dialog_text">Вы уверены, что хотите удалить ВСЕ записи из списка?</string>
+    <string name="confirm_dialog_title">Подтверждение</string>
 </resources>
