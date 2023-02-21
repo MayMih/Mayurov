@@ -8,6 +8,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
+import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.drawable.Drawable;
@@ -32,6 +33,7 @@ import android.widget.Toast;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.textfield.TextInputEditText;
+import com.squareup.picasso.Callback;
 import com.squareup.picasso.Picasso;
 
 import java.io.BufferedReader;
@@ -55,11 +57,9 @@ import java.util.stream.Stream;
 
 import io.swagger.client.ApiException;
 import io.swagger.client.api.FilmsApi;
-import jp.wasabeef.picasso.transformations.RoundedCornersTransformation;
 
 public class MainActivity extends AppCompatActivity
 {
-    
     
     //region 'Типы'
     
@@ -169,7 +169,6 @@ public class MainActivity extends AppCompatActivity
     
     //region 'Поля и константы'
     private static final List<Map<String, String>> _cardList = new ArrayList<>();
-    public TextWatcher _textWatcher;
     public File _favouritesListFilePath;
     private File _imageCacheDirPath;
     
@@ -425,15 +424,17 @@ public class MainActivity extends AppCompatActivity
         }
     }
     
+    
+    private TextWatcher searchTextChangeWatcher;
     /**
      * Обработчик изменения текста в виджете Поиска
      */
     @NonNull
     private TextWatcher getSearchTextChangeWatcher()
     {
-        if (_textWatcher == null)
+        if (this.searchTextChangeWatcher == null)
         {
-            _textWatcher = new TextWatcher()
+            searchTextChangeWatcher = new TextWatcher()
             {
                 @Override
                 public void beforeTextChanged(CharSequence s, int start, int count, int after)
@@ -462,7 +463,19 @@ public class MainActivity extends AppCompatActivity
                 }
             };
         }
-        return _textWatcher;
+        return searchTextChangeWatcher;
+    }
+    
+    /**
+     * Обработчик клика на элемент списка (карточку Фильма) - открывает окно с подробным описанием Фильма.
+     *
+     * @param id    ИД Фильма в API Kinopoisk
+     * @param title Название (будет отображаться в заголовке карточки до тех пор, пока не будет загружено подробное описание)
+     */
+    @NonNull
+    private View.OnClickListener getOnListItemClickListener(String id, String title)
+    {
+        return (View v) -> showFilmCardActivity(id, title);
     }
     
     //endregion 'Обработчики'
@@ -569,6 +582,7 @@ public class MainActivity extends AppCompatActivity
         {
             cardsContainer.setVisibility(View.INVISIBLE);
             switchUIToFavouriteFilms(true);
+            // добавляем задержку, чтобы юзер мог четко определить замену списка на новый
             cardsContainer.postDelayed(() -> {
                 swipeRefreshContainer.setRefreshing(false);
                 cardsContainer.setVisibility(View.VISIBLE);
@@ -585,6 +599,7 @@ public class MainActivity extends AppCompatActivity
     {
         for (int i = startItemIndex; i < cardList.size(); i++)
         {
+            @SuppressLint("InflateParams")
             final var listItem = _layoutInflater.inflate(R.layout.list_item, null);
             final var cardData = cardList.get(i);
             final var id = cardData.get(Constants.ADAPTER_FILM_ID);
@@ -594,31 +609,39 @@ public class MainActivity extends AppCompatActivity
             ((TextView) listItem.findViewById(R.id.card_content)).setText(cardData.get(ADAPTER_CONTENT));
             final var imgView = ((ImageView) listItem.findViewById(R.id.poster_preview));
             final var imageUrl = cardData.get(Constants.ADAPTER_POSTER_PREVIEW_URL);
-            final var cachedImageFilePath = cardData.getOrDefault(ADAPTER_IMAGE_PREVIEW_FILE_PATH, "");
-            //noinspection ConstantConditions
-            if (cachedImageFilePath.isEmpty())
+            final var cachedImageFilePath = cardData.get(ADAPTER_IMAGE_PREVIEW_FILE_PATH);
+            File previewImageFile = null;
+            if (cachedImageFilePath != null && !cachedImageFilePath.isBlank())
             {
-                Picasso.get().load(imageUrl).transform(new RoundedCornersTransformation(30, 10)).into(imgView);
+                previewImageFile = new File(cachedImageFilePath);
+            }
+            if (previewImageFile == null)
+            {
+                Picasso.get().load(imageUrl).transform(ROUNDED_CORNERS_TRANSFORMATION).into(imgView);
             }
             else
             {
-                final var previewImageFile = new File(cachedImageFilePath);
                 if (previewImageFile.exists())
                 {
                     imgView.setImageURI(Uri.fromFile(previewImageFile));
-                    //imgView.setImageDrawable(RoundedBitmapDrawable.createFromPath(cachedImageFilePath));
                     Log.d(LOG_TAG, "Картинка загружена из файла: " + cachedImageFilePath);
+                }
+                else
+                {
+                    restoreImageCacheFromURL(imgView, imageUrl, cachedImageFilePath);
+                    Log.d(LOG_TAG, "Промах кэша - видимо файл был удалён - картинка будет загружена из Сети:\n " +
+                            cachedImageFilePath);
                 }
             }
             cardsContainer.addView(listItem);
-            listItem.setOnClickListener(v -> showFilmCardActivity(id, title));
+            listItem.setOnClickListener(this.getOnListItemClickListener(id, title));
             final ImageView imgViewLike = listItem.findViewById(R.id.like_image_view);
             // TODO: возможно фильм нужно искать по названию, а не по ИД, на случай, если ИД поменяется?
             if (getFavouritesMap().containsKey(id))
             {
                 imgViewLike.setImageResource(R.drawable.baseline_favorite_24);
             }
-            final var likeButtonClickHandler = getOnLikeButtonClickListener(
+            final var likeButtonClickHandler = this.getOnLikeButtonClickListener(
                     cardData, id, imgView, imgViewLike);
             imgViewLike.setOnClickListener(likeButtonClickHandler);
             // Требование ТЗ: "При длительном клике на карточку, фильм помещается в избранное"
@@ -626,6 +649,40 @@ public class MainActivity extends AppCompatActivity
                 likeButtonClickHandler.onClick(v);
                 return true;
             });
+        }
+    }
+    
+    private void restoreImageCacheFromURL(ImageView imgView, String imageUrl, String cachedImageFilePath)
+    {
+        Picasso.get().load(imageUrl).transform(ROUNDED_CORNERS_TRANSFORMATION)
+                .into(imgView, new Callback()
+                {
+                    @Override
+                    public void onSuccess()
+                    {
+                        // TODO: без задержки, картинки не успевают прорисоваться, но слишком большая задержка,
+                        //  тоже опасна - юзер уже мог переключить представление (хотя объект не должен уничтожаться).
+                        imgView.postDelayed(() -> extractImageToDiskCache(imgView, cachedImageFilePath), 300);
+                    }
+    
+                    @Override
+                    public void onError(Exception e)
+                    {
+                        Log.e(LOG_TAG, "Ошибка загрузки мини постера фильма по адресу:\n " + imageUrl, e);
+                    }
+                });
+    }
+    
+    private void extractImageToDiskCache(ImageView imgViewSource, String cachedImageFilePath)
+    {
+        try (var outStream = new FileOutputStream(cachedImageFilePath))
+        {
+            Utils.convertDrawableToBitmap(imgViewSource.getDrawable()).compress(
+                    Bitmap.CompressFormat.WEBP, 80, outStream);
+        }
+        catch (IOException e)
+        {
+            Log.e(LOG_TAG, "Ошибка записи в файл:\n " + cachedImageFilePath, e);
         }
     }
     
@@ -818,10 +875,13 @@ public class MainActivity extends AppCompatActivity
     @NonNull
     private void showFilmCardActivity(String kinoApiFilmId, String cardTitle)
     {
-        var switchActivityIntent = new Intent(getApplicationContext(), CardActivity.class);
-        switchActivityIntent.putExtra(Constants.ADAPTER_TITLE, cardTitle);
-        switchActivityIntent.putExtra(Constants.ADAPTER_FILM_ID, kinoApiFilmId);
-        startActivity(switchActivityIntent);
+        final var switchToCardActivityIntent = new Intent(getApplicationContext(), CardActivity.class);
+        switchToCardActivityIntent.putExtra(Constants.ADAPTER_TITLE, cardTitle);
+        switchToCardActivityIntent.putExtra(Constants.ADAPTER_FILM_ID, kinoApiFilmId);
+        final var extraData = new Bundle(2);
+        extraData.clear();
+        extraData.putString(Constants.ADAPTER_TITLE, cardTitle);
+        startActivity(switchToCardActivityIntent);
     }
     
     /**

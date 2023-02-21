@@ -44,9 +44,10 @@ public class CardActivity extends AppCompatActivity
     
     //region 'Типы'
     
-    private class WebDataDownloadTask extends AsyncTask<String, Void, Void>
+    private class WebDataDownloadTask extends AsyncTask<Void, Void, Void>
     {
         private final FilmsApi filmsApi;
+        private final View progBar = findViewById(R.id.progress_bar);
         private Map.Entry<Exception, String> error;
     
         public Map.Entry<Exception, String> getError()
@@ -63,26 +64,25 @@ public class CardActivity extends AppCompatActivity
         protected void onPreExecute()
         {
             super.onPreExecute();
-            var progBar = findViewById(R.id.progress_bar);
             progBar.setVisibility(View.VISIBLE);
             Log.d(Constants.LOG_TAG, "Начало загрузки веб-ресурса...");
         }
         
         @Override
-        protected Void doInBackground(String... request)
+        protected Void doInBackground(Void... unused)
         {
             try
             {
                 final var response = filmsApi.apiV22FilmsIdGet(Integer.parseInt(filmId));
                 _cardData.put(Constants.ADAPTER_TITLE, response.getNameRu());
-                final var geners = "\n\n Жанры: " + response.getGenres().stream()
+                final var genres = "\n\n Жанры: " + response.getGenres().stream()
                         .map(g -> g.getGenre() + ", ")
                         .collect(Collectors.joining())
                         .replaceFirst(",\\s*$", "");
                 final var countries = "\n\n Страны: " + response.getCountries().stream()
                         .map(country -> country.getCountry() + ", ")
                         .collect(Collectors.joining()).replaceFirst(",\\s*$", "");
-                final var res = response.getDescription() + geners + countries;
+                final var res = response.getDescription() + genres + countries;
                 _cardData.put(Constants.ADAPTER_CONTENT, res);
                 _cardData.put(Constants.ADAPTER_POSTER_PREVIEW_URL, response.getPosterUrl());
             }
@@ -114,7 +114,6 @@ public class CardActivity extends AppCompatActivity
         protected void onPostExecute(Void unused)
         {
             super.onPostExecute(unused);
-            var progBar = findViewById(R.id.progress_bar);
             progBar.setVisibility(View.GONE);
             if (downloadTask.getError() != null)
             {
@@ -188,7 +187,7 @@ public class CardActivity extends AppCompatActivity
      */
     private void fillCardUI()
     {
-        // параметры fit() и centerCrop() сильно замедляют загрузку.
+        // N.B.: параметры fit() и centerCrop() могут сильно замедлять загрузку!
         Picasso.get().load(_cardData.get(Constants.ADAPTER_POSTER_PREVIEW_URL)).fit().centerCrop().into(imgPoster);
         txtHeader.setText(_cardData.get(Constants.ADAPTER_TITLE));
         Objects.requireNonNull(getSupportActionBar()).setDisplayShowTitleEnabled(false);

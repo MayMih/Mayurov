@@ -1,6 +1,8 @@
 package org.mmu.tinkoffkinolab;
 
 
+import jp.wasabeef.picasso.transformations.RoundedCornersTransformation;
+
 public class Constants
 {
     public static final String ADAPTER_FILM_ID = "ID";
@@ -13,6 +15,7 @@ public class Constants
     public static final String KEY_VALUE_SEPARATOR = "=";
     public static final String FILM_START_TOKEN = "{";
     public static final String FILM_END_TOKEN = "}";
+    public static final RoundedCornersTransformation ROUNDED_CORNERS_TRANSFORMATION = new RoundedCornersTransformation(30, 10);
     /**
      * Демо-ключ неофициального API Кинопоиска
      *
@@ -24,10 +27,10 @@ public class Constants
      * @implSpec В качестве альтернативы вы можете зарегистрироваться самостоятельно и получить
      *      собственный ключ, но тогда будет действовать ограничение в 500 запросов в день.
      */
-    static final String KINO_DEMO_API_KEY = "e30ffed0-76ab-4dd6-b41f-4c9da2b2735b";
-    static final String ADAPTER_POSTER_PREVIEW_URL = "ImageUrl";
-    static final String UNKNOWN_WEB_ERROR_MES = "Ошибка загрузки данных по сети:";
-    static final String KINO_API_ERROR_MES = "Ошибка API KinoPoisk";
+    public static final String KINO_DEMO_API_KEY = "e30ffed0-76ab-4dd6-b41f-4c9da2b2735b";
+    public static final String ADAPTER_POSTER_PREVIEW_URL = "ImageUrl";
+    public static final String UNKNOWN_WEB_ERROR_MES = "Ошибка загрузки данных по сети:";
+    public static final String KINO_API_ERROR_MES = "Ошибка API KinoPoisk";
     
     enum TopFilmsType
     {
