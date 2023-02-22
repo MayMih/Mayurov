@@ -24,6 +24,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="400dp"
                 android:layout_marginBottom="10dp"
+                android:scaleType="centerCrop"
                 android:contentDescription="@string/filmposter_image_alt_text"
                 tools:srcCompat="@tools:sample/backgrounds/scenic" />
 

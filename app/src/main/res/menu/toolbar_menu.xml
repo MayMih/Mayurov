@@ -21,9 +21,14 @@
         android:id="@+id/action_refresh"
         android:icon="@android:drawable/ic_menu_rotate"
         android:title="@string/action_refresh_title"
-        app:showAsAction="ifRoom"/>
+        app:showAsAction="never"/>
     <item
         android:id="@+id/action_clear_list"
         android:title="@string/action_clear_title"
+        app:showAsAction="never"/>
+    <item
+        android:id="@+id/action_show_search_bar"
+        android:title="@string/action_show_search_bar_title"
+        android:icon="@android:drawable/ic_menu_search"
         app:showAsAction="never"/>
 </menu>

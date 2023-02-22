@@ -1,14 +1,17 @@
 package org.mmu.tinkoffkinolab;
 
 import android.content.Context;
+import android.content.res.Configuration;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Debug;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -156,7 +159,8 @@ public class CardActivity extends AppCompatActivity
         getSupportFragmentManager().registerFragmentLifecycleCallbacks(new FragmentManager.FragmentLifecycleCallbacks()
         {
             @Override
-            public void onFragmentViewCreated(@NonNull FragmentManager fm, @NonNull Fragment f, @NonNull View v, @Nullable Bundle savedInstanceState)
+            public void onFragmentViewCreated(@NonNull FragmentManager fm, @NonNull Fragment f,
+                                              @NonNull View v, @Nullable Bundle savedInstanceState)
             {
                 imgPoster = v.findViewById(R.id.poster_image_view);
                 txtHeader = v.findViewById(R.id.card_title);
@@ -167,7 +171,24 @@ public class CardActivity extends AppCompatActivity
             }
         }, false);
     }
-
+    
+    @Override
+    public void onConfigurationChanged(@NonNull Configuration newConfig)
+    {
+        super.onConfigurationChanged(newConfig);
+        if (Debug.isDebuggerConnected())
+        {
+            if (newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE)
+            {
+                Toast.makeText(this, "landscape", Toast.LENGTH_SHORT).show();
+            }
+            else if (newConfig.orientation == Configuration.ORIENTATION_PORTRAIT)
+            {
+                Toast.makeText(this, "portrait", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+    
     /**
      * Обработчик нажатия кнопки меню Назад
      *
@@ -200,7 +221,7 @@ public class CardActivity extends AppCompatActivity
     private void fillCardUI()
     {
         // N.B.: параметры fit() и centerCrop() могут сильно замедлять загрузку!
-        Picasso.get().load(_cardData.get(Constants.ADAPTER_POSTER_PREVIEW_URL)).fit().centerCrop().into(imgPoster);
+        Picasso.get().load(_cardData.get(Constants.ADAPTER_POSTER_PREVIEW_URL)).into(imgPoster);
         txtHeader.setText(_cardData.get(Constants.ADAPTER_TITLE));
         Objects.requireNonNull(getSupportActionBar()).setDisplayShowTitleEnabled(false);
         txtContent.setText(_cardData.get(Constants.ADAPTER_CONTENT));

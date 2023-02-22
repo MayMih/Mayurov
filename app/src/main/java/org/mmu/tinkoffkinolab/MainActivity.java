@@ -11,6 +11,7 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import android.annotation.SuppressLint;
 import android.content.Intent;
+import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
@@ -47,6 +48,7 @@ import io.swagger.client.api.FilmsApi;
 
 public class MainActivity extends AppCompatActivity
 {
+    
     
     //region 'Типы'
     
@@ -184,9 +186,8 @@ public class MainActivity extends AppCompatActivity
     private boolean _isFiltered;
     private int _lastListViewPos;
     private int _lastListViewPos2;
-    
     private View scroller;
-    
+    private boolean _isLandscape;
     //endregion 'Поля и константы'
     
     
@@ -253,6 +254,7 @@ public class MainActivity extends AppCompatActivity
         if (_favouritesListFilePath.exists())
         {
             loadFavouritesList();
+            Log.d(LOG_TAG, "---------------------- состояние восстановлено! ----------------");
         }
         if (Debug.isDebuggerConnected())
         {
@@ -276,7 +278,36 @@ public class MainActivity extends AppCompatActivity
         this._initEventHandlers();
         
         switchUIToPopularFilmsAsync(true, true);
+        
         Log.w(LOG_TAG, "End of onCreate() method ---------------------");
+    }
+    
+    @Override
+    public void onConfigurationChanged(@NonNull Configuration newConfig)
+    {
+        super.onConfigurationChanged(newConfig);
+        if (newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE)
+        {
+            _isLandscape = true;
+            if (Debug.isDebuggerConnected())
+            {
+                Toast.makeText(this, "landscape", Toast.LENGTH_SHORT).show();
+            }
+        }
+        else if (newConfig.orientation == Configuration.ORIENTATION_PORTRAIT)
+        {
+            _isLandscape = false;
+            if (Debug.isDebuggerConnected())
+            {
+                Toast.makeText(this, "portrait", Toast.LENGTH_SHORT).show();
+            }
+        }
+        inputPanel.setVisibility(_isLandscape ? View.GONE : View.VISIBLE);
+        if (inputPanel.getVisibility() == View.GONE)
+        {
+            Objects.requireNonNull(txtQuery.getText()).clear();
+        }
+        invalidateOptionsMenu();
     }
     
     /**
@@ -305,10 +336,18 @@ public class MainActivity extends AppCompatActivity
         Log.d(LOG_TAG, "-------------------------- состояние сохранено! ----------------");
     }
     
+    
     @Override
     public boolean onCreateOptionsMenu(Menu menu)
     {
         getMenuInflater().inflate(R.menu.toolbar_menu, menu);
+        //TODO: костылим перерисовку меню при смене ориентации, т.к. invalidate() не помогает?!
+        menu.findItem(R.id.action_switch_to_popular).setShowAsAction(_isLandscape ?
+                MenuItem.SHOW_AS_ACTION_ALWAYS : MenuItem.SHOW_AS_ACTION_IF_ROOM);
+        menu.findItem(R.id.action_switch_to_favorites).setShowAsAction(_isLandscape ?
+                MenuItem.SHOW_AS_ACTION_ALWAYS : MenuItem.SHOW_AS_ACTION_IF_ROOM);
+        menu.findItem(R.id.action_show_search_bar).setVisible(_isLandscape).setShowAsAction(_isLandscape ?
+                MenuItem.SHOW_AS_ACTION_ALWAYS : MenuItem.SHOW_AS_ACTION_NEVER);
         return super.onCreateOptionsMenu(menu);
     }
     
@@ -348,6 +387,15 @@ public class MainActivity extends AppCompatActivity
                 else
                 {
                     clearList(false);
+                }
+                break;
+            }
+            case R.id.action_show_search_bar:
+            {
+                inputPanel.setVisibility(inputPanel.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE);
+                if (inputPanel.getVisibility() == View.GONE)
+                {
+                    Objects.requireNonNull(txtQuery.getText()).clear();
                 }
                 break;
             }
