@@ -1,5 +1,7 @@
 package org.mmu.tinkoffkinolab;
 
+import static org.mmu.tinkoffkinolab.Constants.LOG_TAG;
+
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
@@ -8,6 +10,8 @@ import android.util.Log;
 import android.widget.ImageView;
 
 import java.io.BufferedInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.net.URLConnection;
@@ -52,5 +56,18 @@ public class Utils
         Canvas canvas = new Canvas(bm);
         pd.draw(canvas);
         return bm;
+    }
+    
+    public static void extractImageToDiskCache(ImageView imgViewSource, String cachedImageFilePath)
+    {
+        try (var outStream = new FileOutputStream(cachedImageFilePath))
+        {
+            Utils.convertDrawableToBitmap(imgViewSource.getDrawable()).compress(
+                    Bitmap.CompressFormat.WEBP, 80, outStream);
+        }
+        catch (IOException e)
+        {
+            Log.e(LOG_TAG, "Ошибка записи в файл:\n " + cachedImageFilePath, e);
+        }
     }
 }

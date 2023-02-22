@@ -1,6 +1,7 @@
 package org.mmu.tinkoffkinolab;
 
 import static org.mmu.tinkoffkinolab.Constants.*;
+import static org.mmu.tinkoffkinolab.Utils.*;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
@@ -36,22 +37,8 @@ import com.google.android.material.textfield.TextInputEditText;
 import com.squareup.picasso.Callback;
 import com.squareup.picasso.Picasso;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.util.AbstractMap;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.io.*;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -166,7 +153,6 @@ public class MainActivity extends AppCompatActivity
     
     
     
-    
     //region 'Поля и константы'
     private static final List<Map<String, String>> _cardList = new ArrayList<>();
     public File _favouritesListFilePath;
@@ -205,7 +191,6 @@ public class MainActivity extends AppCompatActivity
     
     
     
-    
     //region 'Свойства'
     
     private Map<String, Map<String, String>> favouritesMap;
@@ -214,7 +199,7 @@ public class MainActivity extends AppCompatActivity
      * Возвращает список избранных фильмов
      *
      * @implSpec ВНИМАНИЕ: ИД фильма должен идти первой строчкой, иначе метод загрузки из файла не будет
-     *          работать корректно ({@link #loadFavouritesList()})
+     * работать корректно ({@link #loadFavouritesList()})
      */
     public Map<String, Map<String, String>> getFavouritesMap()
     {
@@ -247,7 +232,6 @@ public class MainActivity extends AppCompatActivity
     
     
     
-    
     //region 'Обработчики'
     
     /**
@@ -273,7 +257,7 @@ public class MainActivity extends AppCompatActivity
         if (Debug.isDebuggerConnected())
         {
             Picasso.get().setIndicatorsEnabled(true);
-            Picasso.get().setLoggingEnabled(true);
+            //Picasso.get().setLoggingEnabled(true);
         }
         isRus = Locale.getDefault().getLanguage().equalsIgnoreCase("ru");
         
@@ -426,6 +410,7 @@ public class MainActivity extends AppCompatActivity
     
     
     private TextWatcher searchTextChangeWatcher;
+    
     /**
      * Обработчик изменения текста в виджете Поиска
      */
@@ -440,12 +425,12 @@ public class MainActivity extends AppCompatActivity
                 public void beforeTextChanged(CharSequence s, int start, int count, int after)
                 {
                 }
-    
+                
                 @Override
                 public void onTextChanged(CharSequence s, int start, int before, int count)
                 {
                 }
-    
+                
                 @Override
                 public void afterTextChanged(Editable s)
                 {
@@ -479,7 +464,6 @@ public class MainActivity extends AppCompatActivity
     }
     
     //endregion 'Обработчики'
-    
     
     
     
@@ -539,10 +523,10 @@ public class MainActivity extends AppCompatActivity
             return;
         }
         final var foundFilms = cardStream.filter(x -> {
-            final var words = Arrays.stream(Objects.requireNonNull(x.get(Constants.ADAPTER_TITLE)).split(" "));
-            return words.anyMatch(t -> t.length() > 2 && t.toLowerCase().startsWith(query.strip().toLowerCase()));
-        })
-        .collect(Collectors.toList());
+                    final var words = Arrays.stream(Objects.requireNonNull(x.get(Constants.ADAPTER_TITLE)).split(" "));
+                    return words.anyMatch(t -> t.length() > 2 && t.toLowerCase().startsWith(query.strip().toLowerCase()));
+                })
+                .collect(Collectors.toList());
         
         for (int i = 0; i < cardsContainer.getChildCount(); i++)
         {
@@ -599,8 +583,7 @@ public class MainActivity extends AppCompatActivity
     {
         for (int i = startItemIndex; i < cardList.size(); i++)
         {
-            @SuppressLint("InflateParams")
-            final var listItem = _layoutInflater.inflate(R.layout.list_item, null);
+            @SuppressLint("InflateParams") final var listItem = _layoutInflater.inflate(R.layout.list_item, null);
             final var cardData = cardList.get(i);
             final var id = cardData.get(Constants.ADAPTER_FILM_ID);
             ((TextView) listItem.findViewById(R.id.film_id_holder)).setText(id);
@@ -660,30 +643,17 @@ public class MainActivity extends AppCompatActivity
                     @Override
                     public void onSuccess()
                     {
-                        // TODO: без задержки, картинки не успевают прорисоваться, но слишком большая задержка,
+                        //TODO: без задержки, картинки не успевают прорисоваться, но слишком большая задержка,
                         //  тоже опасна - юзер уже мог переключить представление (хотя объект не должен уничтожаться).
                         imgView.postDelayed(() -> extractImageToDiskCache(imgView, cachedImageFilePath), 300);
                     }
-    
+                    
                     @Override
                     public void onError(Exception e)
                     {
                         Log.e(LOG_TAG, "Ошибка загрузки мини постера фильма по адресу:\n " + imageUrl, e);
                     }
                 });
-    }
-    
-    private void extractImageToDiskCache(ImageView imgViewSource, String cachedImageFilePath)
-    {
-        try (var outStream = new FileOutputStream(cachedImageFilePath))
-        {
-            Utils.convertDrawableToBitmap(imgViewSource.getDrawable()).compress(
-                    Bitmap.CompressFormat.WEBP, 80, outStream);
-        }
-        catch (IOException e)
-        {
-            Log.e(LOG_TAG, "Ошибка записи в файл:\n " + cachedImageFilePath, e);
-        }
     }
     
     /**
@@ -780,7 +750,7 @@ public class MainActivity extends AppCompatActivity
         }
         _currentViewMode = ViewMode.POPULAR;
         customToolBar.setTitle(R.string.action_popular_title);
-    
+        
         _lastListViewPos2 = scroller.getScrollY();
         
         if (ifBeginFromPageOne && isDownloadNew)
@@ -819,6 +789,7 @@ public class MainActivity extends AppCompatActivity
     {
         switchUIToFavouriteFilms(false);
     }
+    
     /**
      * Метода показа Избранных фильмов
      */
@@ -908,8 +879,8 @@ public class MainActivity extends AppCompatActivity
         }
         catch (IOException | RuntimeException e)
         {
-            Log.e(LOG_TAG,"Ошибка чтения файла: " + FAVOURITES_LIST_FILE_NAME, e);
-            Toast.makeText(this,"Не удалось прочитать файл Избранного!", Toast.LENGTH_SHORT).show();
+            Log.e(LOG_TAG, "Ошибка чтения файла: " + FAVOURITES_LIST_FILE_NAME, e);
+            Toast.makeText(this, "Не удалось прочитать файл Избранного!", Toast.LENGTH_SHORT).show();
         }
     }
     
@@ -943,7 +914,7 @@ public class MainActivity extends AppCompatActivity
         }
         catch (IOException | RuntimeException e)
         {
-            Log.e(LOG_TAG,"Ошибка записи файла: " + _favouritesListFilePath.toString(), e);
+            Log.e(LOG_TAG, "Ошибка записи файла: " + _favouritesListFilePath.toString(), e);
         }
     }
     

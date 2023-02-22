@@ -1,7 +1,9 @@
 package org.mmu.tinkoffkinolab;
 
+import android.content.Context;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
@@ -9,7 +11,10 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentManager;
 
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.snackbar.Snackbar;
@@ -146,16 +151,23 @@ public class CardActivity extends AppCompatActivity
         this.setSupportActionBar(customToolBar);
         Objects.requireNonNull(getSupportActionBar()).setDisplayHomeAsUpEnabled(true);
         getSupportActionBar().setDisplayShowHomeEnabled(true);
-        
-        imgPoster = findViewById(R.id.poster_image_view);
-        txtHeader = findViewById(R.id.card_title);
-        txtContent = findViewById(R.id.card_content);
-        androidContentView = findViewById(android.R.id.content);
-        
         filmId = getIntent().getStringExtra(Constants.ADAPTER_FILM_ID);
-        getFilmDataAsync();
+        
+        getSupportFragmentManager().registerFragmentLifecycleCallbacks(new FragmentManager.FragmentLifecycleCallbacks()
+        {
+            @Override
+            public void onFragmentViewCreated(@NonNull FragmentManager fm, @NonNull Fragment f, @NonNull View v, @Nullable Bundle savedInstanceState)
+            {
+                imgPoster = v.findViewById(R.id.poster_image_view);
+                txtHeader = v.findViewById(R.id.card_title);
+                txtContent = v.findViewById(R.id.card_content);
+                androidContentView = v.findViewById(android.R.id.content);
+                super.onFragmentViewCreated(fm, f, v, savedInstanceState);
+                getFilmDataAsync();
+            }
+        }, false);
     }
-    
+
     /**
      * Обработчик нажатия кнопки меню Назад
      *
