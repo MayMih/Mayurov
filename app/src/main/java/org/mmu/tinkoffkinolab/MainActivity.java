@@ -346,6 +346,8 @@ public class MainActivity extends AppCompatActivity
                 MenuItem.SHOW_AS_ACTION_ALWAYS : MenuItem.SHOW_AS_ACTION_IF_ROOM);
         menu.findItem(R.id.action_switch_to_favorites).setShowAsAction(_isLandscape ?
                 MenuItem.SHOW_AS_ACTION_ALWAYS : MenuItem.SHOW_AS_ACTION_IF_ROOM);
+        menu.findItem(R.id.action_go_to_top).setShowAsAction(_isLandscape ?
+                MenuItem.SHOW_AS_ACTION_ALWAYS : MenuItem.SHOW_AS_ACTION_IF_ROOM);
         menu.findItem(R.id.action_show_search_bar).setVisible(_isLandscape).setShowAsAction(_isLandscape ?
                 MenuItem.SHOW_AS_ACTION_ALWAYS : MenuItem.SHOW_AS_ACTION_NEVER);
         return super.onCreateOptionsMenu(menu);

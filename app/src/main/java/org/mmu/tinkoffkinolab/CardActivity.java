@@ -1,15 +1,17 @@
 package org.mmu.tinkoffkinolab;
 
-import android.content.Context;
+import static org.mmu.tinkoffkinolab.Constants.LOG_TAG;
+
 import android.content.res.Configuration;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Debug;
-import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageView;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -21,6 +23,7 @@ import androidx.fragment.app.FragmentManager;
 
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.snackbar.Snackbar;
+import com.squareup.picasso.Callback;
 import com.squareup.picasso.Picasso;
 
 import java.util.AbstractMap;
@@ -45,6 +48,8 @@ public class CardActivity extends AppCompatActivity
     private TextView txtHeader;
     private TextView txtContent;
     private View androidContentView;
+    private View progBar;
+    private boolean _isHorizontal;
     
     //endregion 'Поля и константы'
     
@@ -55,7 +60,6 @@ public class CardActivity extends AppCompatActivity
     private class WebDataDownloadTask extends AsyncTask<Void, Void, Void>
     {
         private final FilmsApi filmsApi;
-        private final View progBar = findViewById(R.id.progress_bar);
         private Map.Entry<Exception, String> error;
     
         public Map.Entry<Exception, String> getError()
@@ -73,7 +77,7 @@ public class CardActivity extends AppCompatActivity
         {
             super.onPreExecute();
             progBar.setVisibility(View.VISIBLE);
-            Log.d(Constants.LOG_TAG, "Начало загрузки веб-ресурса...");
+            Log.d(LOG_TAG, "Начало загрузки веб-ресурса...");
         }
         
         @Override
@@ -108,7 +112,7 @@ public class CardActivity extends AppCompatActivity
                     mes += String.format(Locale.ROOT, " %s (ErrorCode: %d), ResponseHeaders: \n%s\n ResponseBody: \n%s\n",
                             Constants.KINO_API_ERROR_MES, apiEx.getCode(), headersText, apiEx.getResponseBody());
                 }
-                Log.e(Constants.LOG_TAG, mes.isEmpty() ? Constants.UNKNOWN_WEB_ERROR_MES : mes, ex);
+                Log.e(LOG_TAG, mes.isEmpty() ? Constants.UNKNOWN_WEB_ERROR_MES : mes, ex);
             }
             return null;
         }
@@ -130,7 +134,7 @@ public class CardActivity extends AppCompatActivity
             }
             else
             {
-                Log.d(Constants.LOG_TAG, "Загрузка Веб-ресурса завершена успешно");
+                Log.d(LOG_TAG, "Загрузка Веб-ресурса завершена успешно");
                 fillCardUI();
             }
         }
@@ -154,6 +158,8 @@ public class CardActivity extends AppCompatActivity
         this.setSupportActionBar(customToolBar);
         Objects.requireNonNull(getSupportActionBar()).setDisplayHomeAsUpEnabled(true);
         getSupportActionBar().setDisplayShowHomeEnabled(true);
+        progBar = findViewById(R.id.progress_bar);
+        
         filmId = getIntent().getStringExtra(Constants.ADAPTER_FILM_ID);
         
         getSupportFragmentManager().registerFragmentLifecycleCallbacks(new FragmentManager.FragmentLifecycleCallbacks()
@@ -172,20 +178,20 @@ public class CardActivity extends AppCompatActivity
         }, false);
     }
     
+    
     @Override
     public void onConfigurationChanged(@NonNull Configuration newConfig)
     {
         super.onConfigurationChanged(newConfig);
-        if (Debug.isDebuggerConnected())
+        if (newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE)
         {
-            if (newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE)
-            {
-                Toast.makeText(this, "landscape", Toast.LENGTH_SHORT).show();
-            }
-            else if (newConfig.orientation == Configuration.ORIENTATION_PORTRAIT)
-            {
-                Toast.makeText(this, "portrait", Toast.LENGTH_SHORT).show();
-            }
+            _isHorizontal = true;
+            //Toast.makeText(this, "landscape", Toast.LENGTH_SHORT).show();
+        }
+        else if (newConfig.orientation == Configuration.ORIENTATION_PORTRAIT)
+        {
+            _isHorizontal = false;
+            //Toast.makeText(this, "portrait", Toast.LENGTH_SHORT).show();
         }
     }
     
@@ -220,11 +226,40 @@ public class CardActivity extends AppCompatActivity
      */
     private void fillCardUI()
     {
+        progBar.setVisibility(View.VISIBLE);
         // N.B.: параметры fit() и centerCrop() могут сильно замедлять загрузку!
-        Picasso.get().load(_cardData.get(Constants.ADAPTER_POSTER_PREVIEW_URL)).into(imgPoster);
-        txtHeader.setText(_cardData.get(Constants.ADAPTER_TITLE));
-        Objects.requireNonNull(getSupportActionBar()).setDisplayShowTitleEnabled(false);
-        txtContent.setText(_cardData.get(Constants.ADAPTER_CONTENT));
+        final var posterUrl = _cardData.get(Constants.ADAPTER_POSTER_PREVIEW_URL);
+        Picasso.get().load(posterUrl).into(imgPoster, new Callback()
+        {
+            @Override
+            public void onSuccess()
+            {
+                progBar.setVisibility(View.GONE);
+                Objects.requireNonNull(getSupportActionBar()).setDisplayShowTitleEnabled(false);
+                final var textContent = _cardData.getOrDefault(Constants.ADAPTER_CONTENT, "");
+                //noinspection ConstantConditions
+                txtHeader.setText(Objects.requireNonNullElse(_cardData.get(Constants.ADAPTER_TITLE),
+                        textContent));
+                txtContent.setText(textContent);
+                imgPoster.setOnClickListener(v1 -> {
+                    Utils.showFullScreenPhoto(Uri.parse(posterUrl), v1.getContext());
+                });
+                final ScrollView sv = findViewById(R.id.fragment_scroll);
+                sv.postDelayed(() -> {
+                    if (!Utils.isViewOnScreen(txtContent))
+                    {
+                        sv.smoothScrollTo(0, imgPoster.getHeight() / 2);
+                    }
+                }, 500);
+            }
+    
+            @Override
+            public void onError(Exception e)
+            {
+                progBar.setVisibility(View.GONE);
+                Log.e(LOG_TAG, "Ошибка загрузки большого постера", e);
+            }
+        });
     }
     
     /**

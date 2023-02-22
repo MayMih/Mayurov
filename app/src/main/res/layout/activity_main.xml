@@ -66,9 +66,11 @@
     </androidx.cardview.widget.CardView>
 
 
-    <TableLayout
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
+        android:orientation="horizontal"
+        android:weightSum="2"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -78,6 +80,7 @@
             android:id="@+id/film_list_swipe_refresh_container"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_weight="1"
             >
             <ScrollView
                 android:id="@+id/card_scroller"
@@ -87,6 +90,7 @@
                 android:paddingLeft="5dp"
                 android:paddingRight="5dp"
                 android:scrollbarThumbVertical="@color/neo_light"
+                android:scrollbarStyle="outsideOverlay"
                 tools:ignore="SpeakableTextPresentCheck"
                 >
 
@@ -104,9 +108,10 @@
         <androidx.fragment.app.FragmentContainerView
             android:layout_width="wrap_content"
             android:layout_height="match_parent"
-            android:visibility="visible"
+            android:layout_weight="1"
+            android:visibility="gone"
             tools:layout="@layout/fragment_card" />
-    </TableLayout>
+    </LinearLayout>
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>
