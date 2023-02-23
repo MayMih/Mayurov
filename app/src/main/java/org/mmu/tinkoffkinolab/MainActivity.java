@@ -18,6 +18,8 @@ import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Debug;
+import android.os.Parcel;
+import android.os.Parcelable;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
@@ -33,12 +35,16 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.shape.CornerFamily;
+import com.google.android.material.shape.CornerTreatment;
+import com.google.android.material.shape.MaterialShapeDrawable;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.textfield.TextInputEditText;
 import com.squareup.picasso.Callback;
 import com.squareup.picasso.Picasso;
 
 import java.io.*;
+import java.security.cert.X509Certificate;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -157,6 +163,7 @@ public class MainActivity extends AppCompatActivity
     
     //region 'Поля и константы'
     private static final List<Map<String, String>> _cardList = new ArrayList<>();
+    private static ViewMode _currentViewMode;
     public File _favouritesListFilePath;
     private File _imageCacheDirPath;
     
@@ -181,13 +188,13 @@ public class MainActivity extends AppCompatActivity
     private TextInputEditText txtQuery;
     private View androidContentView;
     private LinearLayout cardsContainer;
-    private ViewMode _currentViewMode;
     private LayoutInflater _layoutInflater;
     private boolean _isFiltered;
     private int _lastListViewPos;
     private int _lastListViewPos2;
     private View scroller;
     private boolean _isLandscape;
+    
     //endregion 'Поля и константы'
     
     
@@ -250,12 +257,22 @@ public class MainActivity extends AppCompatActivity
         setContentView(R.layout.activity_main);
         customToolBar = findViewById(R.id.top_toolbar);
         this.setSupportActionBar(customToolBar);
+        // восстанавливаем список избранного из файла
         _favouritesListFilePath = new File(this.getFilesDir(), FAVOURITES_LIST_FILE_NAME);
         if (_favouritesListFilePath.exists())
         {
             loadFavouritesList();
             Log.d(LOG_TAG, "---------------------- состояние восстановлено! ----------------");
         }
+        // закруглённые углы для верхней панели
+        MaterialShapeDrawable toolbarBackground = (MaterialShapeDrawable) customToolBar.getBackground();
+        toolbarBackground.setShapeAppearanceModel(
+                toolbarBackground.getShapeAppearanceModel()
+                        .toBuilder()
+                        .setBottomRightCorner(CornerFamily.ROUNDED, 25)
+                        .setBottomLeftCorner(CornerFamily.ROUNDED, 25)
+                        .build()
+        );
         if (Debug.isDebuggerConnected())
         {
             Picasso.get().setIndicatorsEnabled(true);
@@ -270,18 +287,43 @@ public class MainActivity extends AppCompatActivity
         txtQuery = findViewById(R.id.txt_input);
         cardsContainer = findViewById(R.id.card_linear_lyaout);
         inputPanel = findViewById(R.id.input_panel);
+        //inputPanel.setBackgroundResource(R.drawable.rounded_bottom_shape);
         swipeRefreshContainer = findViewById(R.id.film_list_swipe_refresh_container);
         swipeRefreshContainer.setColorSchemeResources(R.color.biz, R.color.neo, R.color.neo_dark, R.color.purple_light);
         _imageCacheDirPath = new File(this.getCacheDir(), Constants.FAVOURITES_CASH_DIR_NAME);
         scroller = findViewById(R.id.card_scroller);
-        
+        _isLandscape = this.getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
+    
         this._initEventHandlers();
         
-        switchUIToPopularFilmsAsync(true, true);
-        
+        if (savedInstanceState == null || _cardList.isEmpty())
+        {
+            switchUIToPopularFilmsAsync(true, true);
+        }
+        else
+        {
+            fillCardListUIFrom(_currentPageNumber, _currentViewMode == ViewMode.POPULAR ?
+                    _cardList : _currentViewMode == ViewMode.FAVOURITES ?
+                    new ArrayList<>(getFavouritesMap().values()) : new ArrayList<>());
+        }
+        if (_isLandscape)
+        {
+            onScreenRotate();
+        }
         Log.w(LOG_TAG, "End of onCreate() method ---------------------");
     }
     
+    private void onScreenRotate()
+    {
+        final var isBlank = Objects.requireNonNull(txtQuery.getText()).toString().isBlank();
+        inputPanel.setVisibility(_isLandscape && isBlank ? View.GONE : View.VISIBLE);
+    }
+    
+    /**
+     * Обработчик поворота экрана
+     *
+     * @param newConfig The new device configuration.
+     */
     @Override
     public void onConfigurationChanged(@NonNull Configuration newConfig)
     {
@@ -302,12 +344,7 @@ public class MainActivity extends AppCompatActivity
                 Toast.makeText(this, "portrait", Toast.LENGTH_SHORT).show();
             }
         }
-        inputPanel.setVisibility(_isLandscape ? View.GONE : View.VISIBLE);
-        if (inputPanel.getVisibility() == View.GONE)
-        {
-            Objects.requireNonNull(txtQuery.getText()).clear();
-        }
-        invalidateOptionsMenu();
+        onScreenRotate();
     }
     
     /**
@@ -319,6 +356,8 @@ public class MainActivity extends AppCompatActivity
     protected void onSaveInstanceState(@NonNull Bundle outState)
     {
         super.onSaveInstanceState(outState);
+        // TODO: Нужно как-то определять, когда происходит выход из программы. а не поворот, чтобы
+        // не перезаписывать файл при каждом повороте
         if (favouritesMap == null || favouritesMap.isEmpty())
         {
             this.deleteFile(Constants.FAVOURITES_LIST_FILE_NAME);
@@ -341,15 +380,6 @@ public class MainActivity extends AppCompatActivity
     public boolean onCreateOptionsMenu(Menu menu)
     {
         getMenuInflater().inflate(R.menu.toolbar_menu, menu);
-        //TODO: костылим перерисовку меню при смене ориентации, т.к. invalidate() не помогает?!
-        menu.findItem(R.id.action_switch_to_popular).setShowAsAction(_isLandscape ?
-                MenuItem.SHOW_AS_ACTION_ALWAYS : MenuItem.SHOW_AS_ACTION_IF_ROOM);
-        menu.findItem(R.id.action_switch_to_favorites).setShowAsAction(_isLandscape ?
-                MenuItem.SHOW_AS_ACTION_ALWAYS : MenuItem.SHOW_AS_ACTION_IF_ROOM);
-        menu.findItem(R.id.action_go_to_top).setShowAsAction(_isLandscape ?
-                MenuItem.SHOW_AS_ACTION_ALWAYS : MenuItem.SHOW_AS_ACTION_IF_ROOM);
-        menu.findItem(R.id.action_show_search_bar).setVisible(_isLandscape).setShowAsAction(_isLandscape ?
-                MenuItem.SHOW_AS_ACTION_ALWAYS : MenuItem.SHOW_AS_ACTION_NEVER);
         return super.onCreateOptionsMenu(menu);
     }
     
@@ -371,7 +401,6 @@ public class MainActivity extends AppCompatActivity
             }
             case R.id.action_refresh:
             {
-                Objects.requireNonNull(txtQuery.getText()).clear();
                 refreshUIContent();
                 break;
             }
@@ -395,15 +424,11 @@ public class MainActivity extends AppCompatActivity
             case R.id.action_show_search_bar:
             {
                 inputPanel.setVisibility(inputPanel.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE);
-                if (inputPanel.getVisibility() == View.GONE)
-                {
-                    Objects.requireNonNull(txtQuery.getText()).clear();
-                }
                 break;
             }
             default:
             {
-                Log.w(LOG_TAG, "Неизвестная команда меню!");
+                Log.w(LOG_TAG, "Неизвестная команда меню - действие не назначено!");
                 break;
             }
         }
@@ -513,6 +538,22 @@ public class MainActivity extends AppCompatActivity
         return (View v) -> showFilmCardActivity(id, title);
     }
     
+    private void onSearchBarVisibleChanged()
+    {
+        if (inputPanel.getVisibility() == View.GONE)
+        {
+            Log.d(LOG_TAG, "Поле поиска скрыто - очищаю ввод!");
+            Objects.requireNonNull(txtQuery.getText()).clear();
+            customToolBar.setElevation(10 * getResources().getDisplayMetrics().density);
+            //inputPanel.setBackgroundResource(0);
+        }
+        else
+        {
+            customToolBar.setElevation(0);
+            //inputPanel.setBackgroundResource(R.drawable.rounded_bottom_shape);
+        }
+    }
+    
     //endregion 'Обработчики'
     
     
@@ -539,6 +580,7 @@ public class MainActivity extends AppCompatActivity
         txtQuery.addTextChangedListener(getSearchTextChangeWatcher());
         // при прокрутке списка фильмов до конца подгружаем следующую страницу результатов (если есть)
         scroller.setOnScrollChangeListener(this::onScrollChange);
+        inputPanel.getViewTreeObserver().addOnGlobalLayoutListener(this::onSearchBarVisibleChanged);
     }
     
     /**

@@ -31,6 +31,7 @@ public class Constants
     public static final String ADAPTER_POSTER_PREVIEW_URL = "ImageUrl";
     public static final String UNKNOWN_WEB_ERROR_MES = "Ошибка загрузки данных по сети:";
     public static final String KINO_API_ERROR_MES = "Ошибка API KinoPoisk";
+    public static final String SCROLL_POS = "scroll_pos";
     
     enum TopFilmsType
     {
