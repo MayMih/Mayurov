@@ -60,11 +60,13 @@ public class MainActivity extends AppCompatActivity
     
     private class WebDataDownloadTask extends AsyncTask<Integer, Void, Integer>
     {
-        private static final int FILMS_COUNT_PER_PAGE = 20;
-        private final FilmsApi filmsApi;
-        private Map.Entry<Exception, String> error;
         private static final String UNKNOWN_WEB_ERROR_MES = "Ошибка загрузки данных по сети:";
         private static final String KINO_API_ERROR_MES = "Ошибка API KinoPoisk";
+        public static final int FILMS_COUNT_PER_PAGE = 20;
+        private final FilmsApi filmsApi;
+        private final ProgressBar refreshProgBar = findViewById(R.id.progress_bar_bottom);
+        private Map.Entry<Exception, String> error;
+        
         
         
         public WebDataDownloadTask(FilmsApi engine)
@@ -76,30 +78,82 @@ public class MainActivity extends AppCompatActivity
         protected void onPreExecute()
         {
             super.onPreExecute();
-            progBar.setVisibility(View.VISIBLE);
-            progBar.bringToFront();
+            if (_nextPageNumber == 1)
+            {
+                progBar.setVisibility(View.VISIBLE);
+                progBar.bringToFront();
+            }
+            else
+            {
+                refreshProgBar.setVisibility(View.VISIBLE);
+            }
             Log.d(LOG_TAG, "Начало загрузки веб-ресурса...");
         }
         
         @Override
         protected Integer doInBackground(Integer... pageNumber)
         {
+            return downloadPopularFilmList(pageNumber[0]);
+        }
+    
+        @Override
+        protected void onPostExecute(Integer pagesCount)
+        {
+            super.onPostExecute(pagesCount);
+            progBar.setVisibility(View.GONE);
+            refreshProgBar.setVisibility(View.GONE);
+            swipeRefreshContainer.setRefreshing(false);
+            if (error != null)
+            {
+                lastSnackBar = showErrorSnackBar(UNKNOWN_WEB_ERROR_MES);
+            }
+            else
+            {
+                Log.d(LOG_TAG, "Загрузка Веб-ресурса завершена успешно");
+                fillCardListUIFrom((_nextPageNumber - 1) * FILMS_COUNT_PER_PAGE, _cardList);
+                _topFilmsPagesCount = pagesCount;
+                // наращивать номер страницы можно ТОЛЬКО после успешной загрузки, иначе можно накрутить номер
+                if (_nextPageNumber < _topFilmsPagesCount)
+                {
+                    _nextPageNumber++;
+                }
+                if (lastSnackBar != null && lastSnackBar.isShown())
+                {
+                    lastSnackBar.dismiss();
+                }
+            }
+        }
+    
+        /**
+         * Метод загрузки списка популярных Фильмов
+         *
+         * @param pageNumber Номер страницы, с которой надо начинать загрузку
+         *
+         * @return Общее Кол-во страниц на сервере или 0 (если операция была прервана пользователем)
+         *
+         * @apiNote Не выбрасывает исключений
+         */
+        private int downloadPopularFilmList(int pageNumber)
+        {
             int res = 0;
             try
             {
-                final var response = filmsApi.apiV22FilmsTopGet(Constants.TopFilmsType.TOP_100_POPULAR_FILMS.name(), pageNumber[0]);
+                final var response = filmsApi.apiV22FilmsTopGet(
+                        TopFilmsType.TOP_100_POPULAR_FILMS.name(),
+                        pageNumber);
                 res = response.getPagesCount();
                 for (var filmData : response.getFilms())
                 {
                     if (isCancelled())
                     {
-                        return null;
+                        return 0;
                     }
                     final var id = String.valueOf(filmData.getFilmId());
                     Optional<String> name = Optional.ofNullable(isRus ? filmData.getNameRu() : filmData.getNameEn());
                     _cardList.add(Map.of(Constants.ADAPTER_FILM_ID, id,
                             Constants.ADAPTER_TITLE, name.orElse(id),
-                            Constants.ADAPTER_CONTENT, filmData.getGenres().get(0).getGenre() + " (" + filmData.getYear() + ")",
+                            Constants.ADAPTER_CONTENT, filmData.getGenres().get(0).getGenre() +
+                                    " (" + filmData.getYear() + ")",
                             Constants.ADAPTER_POSTER_PREVIEW_URL, filmData.getPosterUrlPreview())
                     );
                 }
@@ -122,32 +176,8 @@ public class MainActivity extends AppCompatActivity
             }
             return res;
         }
-        
-        @Override
-        protected void onPostExecute(Integer pagesCount)
-        {
-            super.onPostExecute(pagesCount);
-            progBar.setVisibility(View.GONE);
-            swipeRefreshContainer.setRefreshing(false);
-            if (error != null)
-            {
-                lastSnackBar = showErrorSnackBar(UNKNOWN_WEB_ERROR_MES);
-            }
-            else
-            {
-                Log.d(LOG_TAG, "Загрузка Веб-ресурса завершена успешно");
-                fillCardListUIFrom((_currentPageNumber - 1) * FILMS_COUNT_PER_PAGE, _cardList);
-                _topFilmsPagesCount = pagesCount;
-                if (_currentPageNumber < _topFilmsPagesCount)
-                {
-                    _currentPageNumber++;
-                }
-                if (lastSnackBar != null && lastSnackBar.isShown())
-                {
-                    lastSnackBar.dismiss();
-                }
-            }
-        }
+    
+    
     }
     
     //endregion 'Типы'
@@ -162,7 +192,7 @@ public class MainActivity extends AppCompatActivity
      *
      * @implSpec НЕ изменять - управляется классом {@link WebDataDownloadTask}
      */
-    private static int _currentPageNumber = 1;
+    private static int _nextPageNumber = 1;
     private static int _topFilmsPagesCount = 1;
     
     public File favouritesListFilePath;
@@ -237,6 +267,8 @@ public class MainActivity extends AppCompatActivity
     /**
      * При создании Экрана навешиваем обработчик обновления списка свайпом
      *
+     * @apiNote Вызывается при запуске программы, а также, если процесс был вытеснен из памяти
+     *
      * @param savedInstanceState If the activity is being re-initialized after
      *                           previously being shut down then this Bundle contains the data it most
      *                           recently supplied in {@link #onSaveInstanceState}.  <b><i>Note: Otherwise it is null.</i></b>
@@ -245,7 +277,7 @@ public class MainActivity extends AppCompatActivity
     protected void onCreate(Bundle savedInstanceState)
     {
         super.onCreate(savedInstanceState);
-        Log.w(LOG_TAG, "---------------- Start of onCreate() method");
+        Log.d(LOG_TAG, "---------------- In the onCreate() method");
         setContentView(R.layout.activity_main);
         customToolBar = findViewById(R.id.top_toolbar);
         this.setSupportActionBar(customToolBar);
@@ -254,7 +286,7 @@ public class MainActivity extends AppCompatActivity
         if (this.favouritesListFilePath.exists())
         {
             loadFavouritesList();
-            Log.d(LOG_TAG, "---------------------- состояние восстановлено! ----------------");
+            Log.d(LOG_TAG, "Список избранного загружен из файла:\n " + this.favouritesListFilePath);
         }
         // закруглённые углы для верхней панели
         Utils.setRoundedBottomToolbarStyle(customToolBar, 25);
@@ -263,49 +295,72 @@ public class MainActivity extends AppCompatActivity
             Picasso.get().setIndicatorsEnabled(true);
             //Picasso.get().setLoggingEnabled(true);
         }
-        isRus = Locale.getDefault().getLanguage().equalsIgnoreCase("ru");
-        
-        layoutInflater = getLayoutInflater();
-        androidContentView = findViewById(android.R.id.content);
+        this.isRus = Locale.getDefault().getLanguage().equalsIgnoreCase("ru");
+    
+        this.layoutInflater = getLayoutInflater();
+        this.androidContentView = findViewById(android.R.id.content);
         this.progBar = findViewById(R.id.progress_bar);
         this.progBar.setVisibility(View.GONE);
-        txtQuery = findViewById(R.id.txt_input);
-        cardsContainer = findViewById(R.id.card_linear_lyaout);
-        inputPanel = findViewById(R.id.input_panel);
+        this.txtQuery = findViewById(R.id.txt_input);
+        this.cardsContainer = findViewById(R.id.card_linear_lyaout);
+        this.inputPanel = findViewById(R.id.input_panel);
         //inputPanel.setBackgroundResource(R.drawable.rounded_bottom_shape);
-        swipeRefreshContainer = findViewById(R.id.film_list_swipe_refresh_container);
-        swipeRefreshContainer.setColorSchemeResources(R.color.biz, R.color.neo, R.color.neo_dark, R.color.purple_light);
+        this.swipeRefreshContainer = findViewById(R.id.film_list_swipe_refresh_container);
+        this.swipeRefreshContainer.setColorSchemeResources(R.color.biz, R.color.neo, R.color.neo_dark, R.color.purple_light);
         this.imageCacheDirPath = new File(this.getCacheDir(), Constants.FAVOURITES_CASH_DIR_NAME);
-        scroller = findViewById(R.id.card_scroller);
-        isLandscape = this.getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
+        this.scroller = findViewById(R.id.card_scroller);
+        this.isLandscape = this.getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
     
-        this._initEventHandlers();
-        
-        if (savedInstanceState == null || _cardList.isEmpty())
+        this.setEventHandlers();
+    
+        if (_cardList.isEmpty())
         {
             switchUIToPopularFilmsAsync(true, true);
         }
-        else
-        {
-            // обновляем заголовок в Тулбаре
-            List<Map<String, String>> sourceList = null;
-            if (_currentViewMode == ViewMode.FAVOURITES)
-            {
-                switchUIToFavouriteFilms(false);
-                sourceList = _cardList;
-            }
-            else if (_currentViewMode == ViewMode.POPULAR)
-            {
-                switchUIToPopularFilmsAsync(false,false);
-                sourceList = new ArrayList<>(getFavouritesMap().values());
-            }
-            fillCardListUIFrom(_currentPageNumber, Objects.requireNonNull(sourceList));
-        }
-        if (isLandscape)
+        Log.d(LOG_TAG, "Exit of onCreate() method ---------------------");
+    }
+    
+    /**
+     * @apiNote Этот метод всегда вызывается после {@link #onCreate(Bundle)}, а также после
+     *      {@link #onRestart()}, например после нажатия кнопки назад на Activity вызванной из этой.
+     */
+    @Override
+    protected void onStart()
+    {
+        super.onStart();
+        Log.d(LOG_TAG, "---------------- In the onStart() method");
+        if (this.isLandscape)
         {
             onScreenRotate();
         }
-        Log.w(LOG_TAG, "End of onCreate() method ---------------------");
+        Log.w(LOG_TAG, "Exit of onStart() method ---------------------");
+    }
+    
+    /**
+     * Метод восстановления состояния Активити - Вызывается после {@on
+     *
+     * @param savedInstanceState the data most recently supplied in {@link #onSaveInstanceState}.
+     *
+     */
+    @Override
+    protected void onRestoreInstanceState(@NonNull Bundle savedInstanceState)
+    {
+        super.onRestoreInstanceState(savedInstanceState);
+        // обновляем заголовок в Тулбаре
+        List<Map<String, String>> sourceList = null;
+        if (_currentViewMode == ViewMode.FAVOURITES)
+        {
+            switchUIToFavouriteFilms(false);
+            sourceList = new ArrayList<>(getFavouritesMap().values());
+        }
+        else if (_currentViewMode == ViewMode.POPULAR)
+        {
+            switchUIToPopularFilmsAsync(false,false);
+            sourceList = _cardList;
+        }
+        fillCardListUIFrom((_nextPageNumber - 2) * WebDataDownloadTask.FILMS_COUNT_PER_PAGE,
+                Objects.requireNonNull(sourceList));
+        Log.d(LOG_TAG, "---------------------- состояние восстановлено! ----------------");
     }
     
     private void onScreenRotate()
@@ -464,7 +519,7 @@ public class MainActivity extends AppCompatActivity
         boolean isBottomReached = cardsContainer.getBottom() - v.getBottom() - scrollY == 0;
         if (isBottomReached && !isFiltered)
         {
-            if (_currentViewMode == ViewMode.POPULAR && _currentPageNumber < _topFilmsPagesCount)
+            if (_currentViewMode == ViewMode.POPULAR && _nextPageNumber < _topFilmsPagesCount)
             {
                 switchUIToPopularFilmsAsync(false, true);
             }
@@ -557,7 +612,7 @@ public class MainActivity extends AppCompatActivity
     /**
      * Метод настройки событий виджетов
      */
-    private void _initEventHandlers()
+    private void setEventHandlers()
     {
         // обновляем страницу свайпом сверху
         this.swipeRefreshContainer.setOnRefreshListener(this::refreshUIContent);
@@ -647,11 +702,11 @@ public class MainActivity extends AppCompatActivity
     private void refreshUIContent()
     {
         Objects.requireNonNull(txtQuery.getText()).clear();
-        if (this._currentViewMode == ViewMode.POPULAR)
+        if (_currentViewMode == ViewMode.POPULAR)
         {
             switchUIToPopularFilmsAsync(true, true);
         }
-        else if (this._currentViewMode == ViewMode.FAVOURITES)
+        else if (_currentViewMode == ViewMode.FAVOURITES)
         {
             cardsContainer.setVisibility(View.INVISIBLE);
             switchUIToFavouriteFilms(true);
@@ -672,7 +727,8 @@ public class MainActivity extends AppCompatActivity
     {
         for (int i = startItemIndex; i < cardList.size(); i++)
         {
-            @SuppressLint("InflateParams") final var listItem = layoutInflater.inflate(R.layout.list_item, null);
+            @SuppressLint("InflateParams")
+            final var listItem = layoutInflater.inflate(R.layout.list_item, null);
             final var cardData = cardList.get(i);
             final var id = cardData.get(Constants.ADAPTER_FILM_ID);
             ((TextView) listItem.findViewById(R.id.film_id_holder)).setText(id);
@@ -797,7 +853,7 @@ public class MainActivity extends AppCompatActivity
         var popup = Snackbar.make(this.androidContentView, message, Snackbar.LENGTH_INDEFINITE);
         popup.setAction(R.string.repeat_button_caption, view -> {
             var text = Objects.requireNonNull(txtQuery.getText()).toString().replace("null", "");
-            this.startTopFilmsDownloadTask(_currentPageNumber);
+            this.startTopFilmsDownloadTask(_nextPageNumber);
             popup.dismiss();
         });
         popup.show();
@@ -829,9 +885,9 @@ public class MainActivity extends AppCompatActivity
     /**
      * Метод показа ТОП-100 популярных фильмов - асинхронно загружает список фильмов из Сети
      *
-     * @param ifBeginFromPageOne если True, текущий список очищается и показ начинается с первой страницы
+     * @param isBeginFromPageOne если True, текущий список очищается и показ начинается с первой страницы
      */
-    private void switchUIToPopularFilmsAsync(boolean ifBeginFromPageOne, boolean isDownloadNew)
+    private void switchUIToPopularFilmsAsync(boolean isBeginFromPageOne, boolean isDownloadNew)
     {
         customToolBar.setTitle(R.string.action_popular_title);
         if (_currentViewMode == ViewMode.POPULAR && !isDownloadNew)
@@ -841,21 +897,21 @@ public class MainActivity extends AppCompatActivity
         _currentViewMode = ViewMode.POPULAR;
         lastListViewPos2 = scroller.getScrollY();
         
-        if (ifBeginFromPageOne && isDownloadNew)
+        if (isBeginFromPageOne && isDownloadNew)
         {
             clearList(false);
         }
         else if (!isDownloadNew)
         {
-            clearList(!ifBeginFromPageOne);
+            clearList(!isBeginFromPageOne);
         }
-        if (ifBeginFromPageOne)
+        if (isBeginFromPageOne)
         {
-            _currentPageNumber = 1;
+            _nextPageNumber = 1;
         }
         if (isDownloadNew)
         {
-            this.startTopFilmsDownloadTask(_currentPageNumber);
+            this.startTopFilmsDownloadTask(_nextPageNumber);
         }
         else
         {

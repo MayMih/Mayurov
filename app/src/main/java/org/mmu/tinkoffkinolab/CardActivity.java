@@ -86,7 +86,9 @@ public class CardActivity extends AppCompatActivity
             try
             {
                 final var response = filmsApi.apiV22FilmsIdGet(Integer.parseInt(filmId));
-                _cardData.put(Constants.ADAPTER_TITLE, response.getNameRu());
+                final var engName = Objects.requireNonNullElse(response.getNameEn(), "");
+                _cardData.put(Constants.ADAPTER_TITLE, response.getNameRu() + (!engName.isBlank() ?
+                        System.lineSeparator() + "[" + engName +"]" : ""));
                 final var genres = "\n\n Жанры: " + response.getGenres().stream()
                         .map(g -> g.getGenre() + ", ")
                         .collect(Collectors.joining())
@@ -94,7 +96,8 @@ public class CardActivity extends AppCompatActivity
                 final var countries = "\n\n Страны: " + response.getCountries().stream()
                         .map(country -> country.getCountry() + ", ")
                         .collect(Collectors.joining()).replaceFirst(",\\s*$", "");
-                final var res = response.getDescription() + genres + countries;
+                final var res = Objects.requireNonNullElse(response.getDescription(), "") +
+                        genres + countries;
                 _cardData.put(Constants.ADAPTER_CONTENT, res);
                 _cardData.put(Constants.ADAPTER_POSTER_PREVIEW_URL, response.getPosterUrl());
             }
@@ -239,8 +242,8 @@ public class CardActivity extends AppCompatActivity
                 //noinspection ConstantConditions
                 txtHeader.setText(Objects.requireNonNullElse(_cardData.get(Constants.ADAPTER_TITLE),
                         getSupportActionBar().getTitle()));
-                final var textContent = _cardData.getOrDefault(Constants.ADAPTER_CONTENT, "");
-                txtContent.setText(textContent);
+                final var textContent = _cardData.get(Constants.ADAPTER_CONTENT);
+                txtContent.setText(Objects.requireNonNullElse(textContent, ""));
                 imgPoster.setOnClickListener(v1 -> {
                     Utils.showFullScreenPhoto(Uri.parse(posterUrl), v1.getContext());
                 });
