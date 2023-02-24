@@ -17,6 +17,10 @@ import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
 
+import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.shape.CornerFamily;
+import com.google.android.material.shape.MaterialShapeDrawable;
+
 import java.io.BufferedInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -143,5 +147,17 @@ public class Utils
         final var screenHeight = Resources.getSystem().getDisplayMetrics().heightPixels;
         final var screen = new Rect(0, 0, screenWidth, screenHeight);
         return isGlobalVisible && Rect.intersects(actualPosition, screen);
+    }
+    
+    public static void setRoundedBottomToolbarStyle(MaterialToolbar customToolBar, int cornerRadius)
+    {
+        final var toolbarBackground = (MaterialShapeDrawable) customToolBar.getBackground();
+        toolbarBackground.setShapeAppearanceModel(
+                toolbarBackground.getShapeAppearanceModel()
+                        .toBuilder()
+                        .setBottomRightCorner(CornerFamily.ROUNDED, cornerRadius)
+                        .setBottomLeftCorner(CornerFamily.ROUNDED, cornerRadius)
+                        .build()
+        );
     }
 }

@@ -236,10 +236,10 @@ public class CardActivity extends AppCompatActivity
             {
                 progBar.setVisibility(View.GONE);
                 Objects.requireNonNull(getSupportActionBar()).setDisplayShowTitleEnabled(false);
-                final var textContent = _cardData.getOrDefault(Constants.ADAPTER_CONTENT, "");
                 //noinspection ConstantConditions
                 txtHeader.setText(Objects.requireNonNullElse(_cardData.get(Constants.ADAPTER_TITLE),
-                        textContent));
+                        getSupportActionBar().getTitle()));
+                final var textContent = _cardData.getOrDefault(Constants.ADAPTER_CONTENT, "");
                 txtContent.setText(textContent);
                 imgPoster.setOnClickListener(v1 -> {
                     Utils.showFullScreenPhoto(Uri.parse(posterUrl), v1.getContext());

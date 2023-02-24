@@ -1,7 +1,6 @@
 package org.mmu.tinkoffkinolab;
 
 import static org.mmu.tinkoffkinolab.Constants.*;
-import static org.mmu.tinkoffkinolab.Utils.*;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
@@ -18,8 +17,6 @@ import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Debug;
-import android.os.Parcel;
-import android.os.Parcelable;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
@@ -35,16 +32,12 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.material.appbar.MaterialToolbar;
-import com.google.android.material.shape.CornerFamily;
-import com.google.android.material.shape.CornerTreatment;
-import com.google.android.material.shape.MaterialShapeDrawable;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.textfield.TextInputEditText;
 import com.squareup.picasso.Callback;
 import com.squareup.picasso.Picasso;
 
 import java.io.*;
-import java.security.cert.X509Certificate;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -138,7 +131,7 @@ public class MainActivity extends AppCompatActivity
             swipeRefreshContainer.setRefreshing(false);
             if (error != null)
             {
-                _lastSnackBar = showErrorSnackBar(UNKNOWN_WEB_ERROR_MES);
+                lastSnackBar = showErrorSnackBar(UNKNOWN_WEB_ERROR_MES);
             }
             else
             {
@@ -149,9 +142,9 @@ public class MainActivity extends AppCompatActivity
                 {
                     _currentPageNumber++;
                 }
-                if (_lastSnackBar != null && _lastSnackBar.isShown())
+                if (lastSnackBar != null && lastSnackBar.isShown())
                 {
-                    _lastSnackBar.dismiss();
+                    lastSnackBar.dismiss();
                 }
             }
         }
@@ -164,36 +157,35 @@ public class MainActivity extends AppCompatActivity
     //region 'Поля и константы'
     private static final List<Map<String, String>> _cardList = new ArrayList<>();
     private static ViewMode _currentViewMode;
-    public File _favouritesListFilePath;
-    private File _imageCacheDirPath;
-    
-    private boolean isRus;
-    private MaterialToolbar customToolBar;
-    private Snackbar _lastSnackBar;
-    private ProgressBar progBar;
-    private CardView inputPanel;
-    private SwipeRefreshLayout swipeRefreshContainer;
-    private Integer _topFilmsPagesCount = 1;
     /**
      * Содержит номер страницы, которая будет запрошена
      *
      * @implSpec НЕ изменять - управляется классом {@link WebDataDownloadTask}
      */
-    private int _currentPageNumber = 1;
+    private static int _currentPageNumber = 1;
+    private static int _topFilmsPagesCount = 1;
     
+    public File favouritesListFilePath;
+    private File imageCacheDirPath;
+    private boolean isRus;
+    private MaterialToolbar customToolBar;
+    private Snackbar lastSnackBar;
+    private ProgressBar progBar;
+    private CardView inputPanel;
+    private SwipeRefreshLayout swipeRefreshContainer;
     /**
-     * Обязательно пересоздавать задачу перед каждым вызовом!
+     * @apiNote Обязательно пересоздавать задачу перед каждым вызовом!
      */
     private AsyncTask<Integer, Void, Integer> downloadTask;
     private TextInputEditText txtQuery;
     private View androidContentView;
     private LinearLayout cardsContainer;
-    private LayoutInflater _layoutInflater;
-    private boolean _isFiltered;
-    private int _lastListViewPos;
-    private int _lastListViewPos2;
+    private LayoutInflater layoutInflater;
+    private boolean isFiltered;
+    private int lastListViewPos;
+    private int lastListViewPos2;
     private View scroller;
-    private boolean _isLandscape;
+    private boolean isLandscape;
     
     //endregion 'Поля и константы'
     
@@ -258,21 +250,14 @@ public class MainActivity extends AppCompatActivity
         customToolBar = findViewById(R.id.top_toolbar);
         this.setSupportActionBar(customToolBar);
         // восстанавливаем список избранного из файла
-        _favouritesListFilePath = new File(this.getFilesDir(), FAVOURITES_LIST_FILE_NAME);
-        if (_favouritesListFilePath.exists())
+        this.favouritesListFilePath = new File(this.getFilesDir(), FAVOURITES_LIST_FILE_NAME);
+        if (this.favouritesListFilePath.exists())
         {
             loadFavouritesList();
             Log.d(LOG_TAG, "---------------------- состояние восстановлено! ----------------");
         }
         // закруглённые углы для верхней панели
-        MaterialShapeDrawable toolbarBackground = (MaterialShapeDrawable) customToolBar.getBackground();
-        toolbarBackground.setShapeAppearanceModel(
-                toolbarBackground.getShapeAppearanceModel()
-                        .toBuilder()
-                        .setBottomRightCorner(CornerFamily.ROUNDED, 25)
-                        .setBottomLeftCorner(CornerFamily.ROUNDED, 25)
-                        .build()
-        );
+        Utils.setRoundedBottomToolbarStyle(customToolBar, 25);
         if (Debug.isDebuggerConnected())
         {
             Picasso.get().setIndicatorsEnabled(true);
@@ -280,19 +265,19 @@ public class MainActivity extends AppCompatActivity
         }
         isRus = Locale.getDefault().getLanguage().equalsIgnoreCase("ru");
         
-        _layoutInflater = getLayoutInflater();
+        layoutInflater = getLayoutInflater();
         androidContentView = findViewById(android.R.id.content);
-        progBar = findViewById(R.id.progress_bar);
-        progBar.setVisibility(View.GONE);
+        this.progBar = findViewById(R.id.progress_bar);
+        this.progBar.setVisibility(View.GONE);
         txtQuery = findViewById(R.id.txt_input);
         cardsContainer = findViewById(R.id.card_linear_lyaout);
         inputPanel = findViewById(R.id.input_panel);
         //inputPanel.setBackgroundResource(R.drawable.rounded_bottom_shape);
         swipeRefreshContainer = findViewById(R.id.film_list_swipe_refresh_container);
         swipeRefreshContainer.setColorSchemeResources(R.color.biz, R.color.neo, R.color.neo_dark, R.color.purple_light);
-        _imageCacheDirPath = new File(this.getCacheDir(), Constants.FAVOURITES_CASH_DIR_NAME);
+        this.imageCacheDirPath = new File(this.getCacheDir(), Constants.FAVOURITES_CASH_DIR_NAME);
         scroller = findViewById(R.id.card_scroller);
-        _isLandscape = this.getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
+        isLandscape = this.getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
     
         this._initEventHandlers();
         
@@ -302,11 +287,21 @@ public class MainActivity extends AppCompatActivity
         }
         else
         {
-            fillCardListUIFrom(_currentPageNumber, _currentViewMode == ViewMode.POPULAR ?
-                    _cardList : _currentViewMode == ViewMode.FAVOURITES ?
-                    new ArrayList<>(getFavouritesMap().values()) : new ArrayList<>());
+            // обновляем заголовок в Тулбаре
+            List<Map<String, String>> sourceList = null;
+            if (_currentViewMode == ViewMode.FAVOURITES)
+            {
+                switchUIToFavouriteFilms(false);
+                sourceList = _cardList;
+            }
+            else if (_currentViewMode == ViewMode.POPULAR)
+            {
+                switchUIToPopularFilmsAsync(false,false);
+                sourceList = new ArrayList<>(getFavouritesMap().values());
+            }
+            fillCardListUIFrom(_currentPageNumber, Objects.requireNonNull(sourceList));
         }
-        if (_isLandscape)
+        if (isLandscape)
         {
             onScreenRotate();
         }
@@ -316,7 +311,7 @@ public class MainActivity extends AppCompatActivity
     private void onScreenRotate()
     {
         final var isBlank = Objects.requireNonNull(txtQuery.getText()).toString().isBlank();
-        inputPanel.setVisibility(_isLandscape && isBlank ? View.GONE : View.VISIBLE);
+        this.inputPanel.setVisibility(isLandscape && isBlank ? View.GONE : View.VISIBLE);
     }
     
     /**
@@ -330,7 +325,7 @@ public class MainActivity extends AppCompatActivity
         super.onConfigurationChanged(newConfig);
         if (newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE)
         {
-            _isLandscape = true;
+            isLandscape = true;
             if (Debug.isDebuggerConnected())
             {
                 Toast.makeText(this, "landscape", Toast.LENGTH_SHORT).show();
@@ -338,7 +333,7 @@ public class MainActivity extends AppCompatActivity
         }
         else if (newConfig.orientation == Configuration.ORIENTATION_PORTRAIT)
         {
-            _isLandscape = false;
+            isLandscape = false;
             if (Debug.isDebuggerConnected())
             {
                 Toast.makeText(this, "portrait", Toast.LENGTH_SHORT).show();
@@ -361,10 +356,10 @@ public class MainActivity extends AppCompatActivity
         if (favouritesMap == null || favouritesMap.isEmpty())
         {
             this.deleteFile(Constants.FAVOURITES_LIST_FILE_NAME);
-            if (_imageCacheDirPath.exists())
+            if (this.imageCacheDirPath.exists())
             {
                 //noinspection ResultOfMethodCallIgnored
-                Arrays.stream(Objects.requireNonNull(_imageCacheDirPath.listFiles())).parallel()
+                Arrays.stream(Objects.requireNonNull(this.imageCacheDirPath.listFiles())).parallel()
                         .forEach(File::delete);
             }
         }
@@ -423,7 +418,8 @@ public class MainActivity extends AppCompatActivity
             }
             case R.id.action_show_search_bar:
             {
-                inputPanel.setVisibility(inputPanel.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE);
+                this.inputPanel.setVisibility(this.inputPanel.getVisibility() == View.VISIBLE ?
+                        View.GONE : View.VISIBLE);
                 break;
             }
             default:
@@ -466,7 +462,7 @@ public class MainActivity extends AppCompatActivity
     private void onScrollChange(View v, int scrollX, int scrollY, int oldScrollX, int oldScrollY)
     {
         boolean isBottomReached = cardsContainer.getBottom() - v.getBottom() - scrollY == 0;
-        if (isBottomReached && !_isFiltered)
+        if (isBottomReached && !isFiltered)
         {
             if (_currentViewMode == ViewMode.POPULAR && _currentPageNumber < _topFilmsPagesCount)
             {
@@ -475,11 +471,11 @@ public class MainActivity extends AppCompatActivity
         }
         else if (scrollY > 20)
         {
-            inputPanel.setCardElevation(10 * getResources().getDisplayMetrics().density);
+            this.inputPanel.setCardElevation(10 * getResources().getDisplayMetrics().density);
         }
         else if (scrollY == 0)
         {
-            inputPanel.setCardElevation(0);
+            this.inputPanel.setCardElevation(0);
         }
     }
     
@@ -540,17 +536,15 @@ public class MainActivity extends AppCompatActivity
     
     private void onSearchBarVisibleChanged()
     {
-        if (inputPanel.getVisibility() == View.GONE)
+        if (this.inputPanel.getVisibility() == View.GONE)
         {
             Log.d(LOG_TAG, "Поле поиска скрыто - очищаю ввод!");
             Objects.requireNonNull(txtQuery.getText()).clear();
-            customToolBar.setElevation(10 * getResources().getDisplayMetrics().density);
-            //inputPanel.setBackgroundResource(0);
+            this.customToolBar.setElevation(10 * getResources().getDisplayMetrics().density);
         }
         else
         {
-            customToolBar.setElevation(0);
-            //inputPanel.setBackgroundResource(R.drawable.rounded_bottom_shape);
+            this.customToolBar.setElevation(0);
         }
     }
     
@@ -566,39 +560,42 @@ public class MainActivity extends AppCompatActivity
     private void _initEventHandlers()
     {
         // обновляем страницу свайпом сверху
-        swipeRefreshContainer.setOnRefreshListener(this::refreshUIContent);
+        this.swipeRefreshContainer.setOnRefreshListener(this::refreshUIContent);
         // ищем текст по кнопке ВВОД на клавиатуре
-        txtQuery.setOnEditorActionListener((v, actionId, event) -> {
-            // N.B. Похоже, только для действия Done можно реализовать автоскрытие клавиатуры - при остальных клава остаётся на экране после клика
-            if (actionId == EditorInfo.IME_ACTION_DONE || actionId == EditorInfo.IME_ACTION_GO || actionId == EditorInfo.IME_ACTION_SEARCH)
+        this.txtQuery.setOnEditorActionListener((v, actionId, event) -> {
+            // N.B. Похоже, только для действия Done можно реализовать авто скрытие клавиатуры - при
+            //      остальных клава остаётся на экране после клика
+            if (actionId == EditorInfo.IME_ACTION_DONE || actionId == EditorInfo.IME_ACTION_GO ||
+                    actionId == EditorInfo.IME_ACTION_SEARCH)
             {
                 return false;
             }
             return true;
         });
         // Обработчик изменения текста в поисковом контроле
-        txtQuery.addTextChangedListener(getSearchTextChangeWatcher());
+        this.txtQuery.addTextChangedListener(getSearchTextChangeWatcher());
         // при прокрутке списка фильмов до конца подгружаем следующую страницу результатов (если есть)
-        scroller.setOnScrollChangeListener(this::onScrollChange);
-        inputPanel.getViewTreeObserver().addOnGlobalLayoutListener(this::onSearchBarVisibleChanged);
+        this.scroller.setOnScrollChangeListener(this::onScrollChange);
+        // при скрытии панели Поиска очищаем текст фильтра
+        this.inputPanel.getViewTreeObserver().addOnGlobalLayoutListener(this::onSearchBarVisibleChanged);
     }
     
     /**
      * Метод показа (вывода из невидимости) всех карточек фильмов
      *
      * @apiNote Вызов имеет смысл, только если перед этим был вызов {@link #filterFilmCardsUI(String, Stream)} )}
-     * @implNote Сбрасывает признак фильтрации списка {@link #_isFiltered}
+     * @implNote Сбрасывает признак фильтрации списка {@link #isFiltered}
      */
     private void showFilmCardsUI()
     {
-        if (_isFiltered)
+        if (isFiltered)
         {
             for (int i = 0; i < cardsContainer.getChildCount(); i++)
             {
                 cardsContainer.getChildAt(i).setVisibility(View.VISIBLE);
             }
         }
-        _isFiltered = false;
+        isFiltered = false;
     }
     
     /**
@@ -641,7 +638,7 @@ public class MainActivity extends AppCompatActivity
                 }
             }
         }
-        _isFiltered = true;
+        isFiltered = true;
     }
     
     /**
@@ -675,7 +672,7 @@ public class MainActivity extends AppCompatActivity
     {
         for (int i = startItemIndex; i < cardList.size(); i++)
         {
-            @SuppressLint("InflateParams") final var listItem = _layoutInflater.inflate(R.layout.list_item, null);
+            @SuppressLint("InflateParams") final var listItem = layoutInflater.inflate(R.layout.list_item, null);
             final var cardData = cardList.get(i);
             final var id = cardData.get(Constants.ADAPTER_FILM_ID);
             ((TextView) listItem.findViewById(R.id.film_id_holder)).setText(id);
@@ -737,7 +734,7 @@ public class MainActivity extends AppCompatActivity
                     {
                         //TODO: без задержки, картинки не успевают прорисоваться, но слишком большая задержка,
                         //  тоже опасна - юзер уже мог переключить представление (хотя объект не должен уничтожаться).
-                        imgView.postDelayed(() -> extractImageToDiskCache(imgView, cachedImageFilePath), 300);
+                        imgView.postDelayed(() -> Utils.extractImageToDiskCache(imgView, cachedImageFilePath), 300);
                     }
                     
                     @Override
@@ -759,11 +756,11 @@ public class MainActivity extends AppCompatActivity
      */
     private boolean addToOrRemoveFromFavourites(String id, Map<String, String> cardData, Drawable image)
     {
-        if (!_imageCacheDirPath.exists() && !_imageCacheDirPath.mkdir())
+        if (!this.imageCacheDirPath.exists() && !this.imageCacheDirPath.mkdir())
         {
             Log.w(LOG_TAG, "Ошибка создания подкаталога для кэша постеров к фильмам");
         }
-        final var imgPreviewFilePath = new File(_imageCacheDirPath, "preview_" + id + ".webp");
+        final var imgPreviewFilePath = new File(this.imageCacheDirPath, "preview_" + id + ".webp");
         
         if (this.getFavouritesMap().containsKey(id))
         {
@@ -836,14 +833,13 @@ public class MainActivity extends AppCompatActivity
      */
     private void switchUIToPopularFilmsAsync(boolean ifBeginFromPageOne, boolean isDownloadNew)
     {
+        customToolBar.setTitle(R.string.action_popular_title);
         if (_currentViewMode == ViewMode.POPULAR && !isDownloadNew)
         {
             return;
         }
         _currentViewMode = ViewMode.POPULAR;
-        customToolBar.setTitle(R.string.action_popular_title);
-        
-        _lastListViewPos2 = scroller.getScrollY();
+        lastListViewPos2 = scroller.getScrollY();
         
         if (ifBeginFromPageOne && isDownloadNew)
         {
@@ -868,7 +864,7 @@ public class MainActivity extends AppCompatActivity
             if (query.isBlank())
             {
                 // на основе кода отсюда: https://stackoverflow.com/a/3263540/2323972
-                scroller.post(() -> scroller.scrollTo(0, _lastListViewPos));
+                scroller.post(() -> scroller.scrollTo(0, lastListViewPos));
             }
             else
             {
@@ -887,17 +883,17 @@ public class MainActivity extends AppCompatActivity
      */
     private void switchUIToFavouriteFilms(boolean forceRefresh)
     {
+        customToolBar.setTitle(R.string.action_favourites_title);
         if (!forceRefresh && _currentViewMode == ViewMode.FAVOURITES)
         {
             return;
         }
         if (!forceRefresh)
         {
-            _lastListViewPos = scroller.getScrollY();
+            lastListViewPos = scroller.getScrollY();
         }
         _currentViewMode = ViewMode.FAVOURITES;
         clearList(true);
-        customToolBar.setTitle(R.string.action_favourites_title);
         if (!getFavouritesMap().isEmpty())
         {
             fillCardListUIFrom(0, new ArrayList<>(getFavouritesMap().values()));
@@ -908,7 +904,7 @@ public class MainActivity extends AppCompatActivity
             }
             else if (!forceRefresh)
             {
-                scroller.post(() -> scroller.scrollTo(0, _lastListViewPos2));
+                scroller.post(() -> scroller.scrollTo(0, lastListViewPos2));
             }
         }
     }
@@ -953,7 +949,7 @@ public class MainActivity extends AppCompatActivity
     private void loadFavouritesList()
     {
         final var tempValuesMap = new HashMap<String, String>();
-        try (var fr = new BufferedReader(new FileReader(_favouritesListFilePath));
+        try (var fr = new BufferedReader(new FileReader(this.favouritesListFilePath));
              var fileLines = fr.lines())
         {
             fileLines.forEach(line -> {
@@ -981,7 +977,7 @@ public class MainActivity extends AppCompatActivity
      */
     private void saveFavouritesList()
     {
-        try (BufferedWriter fw = new BufferedWriter(new FileWriter(_favouritesListFilePath)))
+        try (BufferedWriter fw = new BufferedWriter(new FileWriter(this.favouritesListFilePath)))
         {
             favouritesMap.forEach((id, filmData) -> {
                 try
@@ -1006,7 +1002,7 @@ public class MainActivity extends AppCompatActivity
         }
         catch (IOException | RuntimeException e)
         {
-            Log.e(LOG_TAG, "Ошибка записи файла: " + _favouritesListFilePath.toString(), e);
+            Log.e(LOG_TAG, "Ошибка записи файла: " + this.favouritesListFilePath.toString(), e);
         }
     }
     
