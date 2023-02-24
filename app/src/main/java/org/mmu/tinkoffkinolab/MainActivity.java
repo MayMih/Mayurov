@@ -47,6 +47,7 @@ import io.swagger.client.api.FilmsApi;
 
 public class MainActivity extends AppCompatActivity
 {
+    private boolean _isFinished;
     
     
     //region 'Типы'
@@ -223,7 +224,7 @@ public class MainActivity extends AppCompatActivity
     
     //region 'Свойства'
     
-    private Map<String, Map<String, String>> favouritesMap;
+    private static Map<String, Map<String, String>> favouritesMap;
     
     /**
      * Возвращает список избранных фильмов
@@ -283,7 +284,7 @@ public class MainActivity extends AppCompatActivity
         this.setSupportActionBar(customToolBar);
         // восстанавливаем список избранного из файла
         this.favouritesListFilePath = new File(this.getFilesDir(), FAVOURITES_LIST_FILE_NAME);
-        if (this.favouritesListFilePath.exists())
+        if (getFavouritesMap().isEmpty() && this.favouritesListFilePath.exists())
         {
             loadFavouritesList();
             Log.d(LOG_TAG, "Список избранного загружен из файла:\n " + this.favouritesListFilePath);
@@ -406,6 +407,13 @@ public class MainActivity extends AppCompatActivity
         {
             onScreenRotate();
         }
+    }
+    
+    @Override
+    protected void onDestroy()
+    {
+        super.onDestroy();
+        _isFinished = isFinishing();
     }
     
     /**
@@ -936,7 +944,7 @@ public class MainActivity extends AppCompatActivity
         {
             fillCardListUIFrom(0, _cardList);
             final var query = Objects.requireNonNull(txtQuery.getText()).toString();
-            if (query.isBlank())
+            if (query.isBlank() && lastListViewPos > 0)
             {
                 // на основе кода отсюда: https://stackoverflow.com/a/3263540/2323972
                 scroller.post(() -> scroller.scrollTo(0, lastListViewPos));
