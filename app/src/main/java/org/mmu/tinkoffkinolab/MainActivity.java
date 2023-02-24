@@ -312,7 +312,7 @@ public class MainActivity extends AppCompatActivity
         this.isLandscape = this.getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
     
         this.setEventHandlers();
-    
+        
         if (_cardList.isEmpty())
         {
             switchUIToPopularFilmsAsync(true, true);
@@ -329,10 +329,6 @@ public class MainActivity extends AppCompatActivity
     {
         super.onStart();
         Log.d(LOG_TAG, "---------------- In the onStart() method");
-        if (this.isLandscape)
-        {
-            onScreenRotate();
-        }
         Log.w(LOG_TAG, "Exit of onStart() method ---------------------");
     }
     
@@ -355,11 +351,16 @@ public class MainActivity extends AppCompatActivity
         }
         else if (_currentViewMode == ViewMode.POPULAR)
         {
-            switchUIToPopularFilmsAsync(false,false);
+            switchUIToPopularFilmsAsync(false, false);
             sourceList = _cardList;
         }
         fillCardListUIFrom((_nextPageNumber - 2) * WebDataDownloadTask.FILMS_COUNT_PER_PAGE,
                 Objects.requireNonNull(sourceList));
+        final String query = Objects.requireNonNull(txtQuery.getText()).toString();
+        if (!query.isBlank())
+        {
+            filterCardListUI(query, this.getCurrentFilmListStream());
+        }
         Log.d(LOG_TAG, "---------------------- состояние восстановлено! ----------------");
     }
     
@@ -395,6 +396,16 @@ public class MainActivity extends AppCompatActivity
             }
         }
         onScreenRotate();
+    }
+    
+    @Override
+    protected void onResume()
+    {
+        super.onResume();
+        if (this.isLandscape)
+        {
+            onScreenRotate();
+        }
     }
     
     /**
@@ -567,14 +578,22 @@ public class MainActivity extends AppCompatActivity
                     }
                     else
                     {
-                        filterFilmCardsUI(s.toString(), _currentViewMode == ViewMode.FAVOURITES ?
-                                getFavouritesMap().values().stream() : _currentViewMode == ViewMode.POPULAR ?
-                                _cardList.stream() : Stream.empty());
+                        filterCardListUI(s.toString(), getCurrentFilmListStream());
                     }
                 }
             };
         }
         return searchTextChangeWatcher;
+    }
+    
+    /**
+     * @return Возвращает нужный поток Фильмов в зависимости от выбранной вкладки UI
+     */
+    private Stream<Map<String, String>> getCurrentFilmListStream()
+    {
+        return _currentViewMode == ViewMode.FAVOURITES ?
+                getFavouritesMap().values().stream() : _currentViewMode == ViewMode.POPULAR ?
+                _cardList.stream() : Stream.empty();
     }
     
     /**
@@ -638,7 +657,7 @@ public class MainActivity extends AppCompatActivity
     /**
      * Метод показа (вывода из невидимости) всех карточек фильмов
      *
-     * @apiNote Вызов имеет смысл, только если перед этим был вызов {@link #filterFilmCardsUI(String, Stream)} )}
+     * @apiNote Вызов имеет смысл, только если перед этим был вызов {@link #filterCardListUI(String, Stream)} )}
      * @implNote Сбрасывает признак фильтрации списка {@link #isFiltered}
      */
     private void showFilmCardsUI()
@@ -660,7 +679,7 @@ public class MainActivity extends AppCompatActivity
      * @apiNote Метод не выдаёт совпадения для слов короче 3-х символов (для исключения предлогов)
      * @implSpec При пустом <code>query</code> не делает НИЧЕГО - для отмены фильтра используйте {@link #showFilmCardsUI()}
      */
-    private void filterFilmCardsUI(String query, Stream<Map<String, String>> cardStream)
+    private void filterCardListUI(String query, Stream<Map<String, String>> cardStream)
     {
         if (query.isBlank())
         {
@@ -924,7 +943,7 @@ public class MainActivity extends AppCompatActivity
             }
             else
             {
-                filterFilmCardsUI(query, _cardList.stream());
+                filterCardListUI(query, _cardList.stream());
             }
         }
     }
@@ -956,7 +975,7 @@ public class MainActivity extends AppCompatActivity
             final var query = Objects.requireNonNull(txtQuery.getText()).toString();
             if (!query.isBlank())
             {
-                filterFilmCardsUI(query, getFavouritesMap().values().stream());
+                filterCardListUI(query, getFavouritesMap().values().stream());
             }
             else if (!forceRefresh)
             {
