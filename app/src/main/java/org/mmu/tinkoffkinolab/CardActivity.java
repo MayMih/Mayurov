@@ -47,7 +47,6 @@ public class CardActivity extends AppCompatActivity
     private WebDataDownloadTask downloadTask;
     private TextView txtHeader;
     private TextView txtContent;
-    private View androidContentView;
     private View progBar;
     private boolean _isHorizontal;
     
@@ -174,7 +173,6 @@ public class CardActivity extends AppCompatActivity
                 imgPoster = v.findViewById(R.id.poster_image_view);
                 txtHeader = v.findViewById(R.id.card_title);
                 txtContent = v.findViewById(R.id.card_content);
-                androidContentView = v.findViewById(android.R.id.content);
                 super.onFragmentViewCreated(fm, f, v, savedInstanceState);
                 getFilmDataAsync();
             }
@@ -189,12 +187,10 @@ public class CardActivity extends AppCompatActivity
         if (newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE)
         {
             _isHorizontal = true;
-            //Toast.makeText(this, "landscape", Toast.LENGTH_SHORT).show();
         }
         else if (newConfig.orientation == Configuration.ORIENTATION_PORTRAIT)
         {
             _isHorizontal = false;
-            //Toast.makeText(this, "portrait", Toast.LENGTH_SHORT).show();
         }
     }
     
@@ -270,7 +266,7 @@ public class CardActivity extends AppCompatActivity
      */
     private void showSnackBar(String message)
     {
-        var popup = Snackbar.make(androidContentView, message, Snackbar.LENGTH_INDEFINITE);
+        var popup = Snackbar.make(this.imgPoster, message, Snackbar.LENGTH_INDEFINITE);
         popup.setAction(R.string.repeat_button_caption, view -> {
             getFilmDataAsync();
             popup.dismiss();

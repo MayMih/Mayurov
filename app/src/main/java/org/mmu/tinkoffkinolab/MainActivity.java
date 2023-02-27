@@ -7,7 +7,6 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
 import androidx.fragment.app.Fragment;
-import androidx.fragment.app.FragmentContainerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import android.annotation.SuppressLint;
@@ -26,7 +25,6 @@ import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -213,7 +211,7 @@ public class MainActivity extends AppCompatActivity
      */
     private AsyncTask<Integer, Void, Integer> downloadTask;
     private TextInputEditText txtQuery;
-    private View androidContentView;
+    private View coordinatorView;
     private LinearLayout cardsContainer;
     private LayoutInflater layoutInflater;
     private boolean isFiltered;
@@ -344,7 +342,7 @@ public class MainActivity extends AppCompatActivity
         this.isRus = Locale.getDefault().getLanguage().equalsIgnoreCase("ru");
     
         this.layoutInflater = getLayoutInflater();
-        this.androidContentView = findViewById(android.R.id.content);
+        this.coordinatorView = findViewById(R.id.root_container);
         this.progBar = findViewById(R.id.progress_bar);
         this.progBar.setVisibility(View.GONE);
         this.txtQuery = findViewById(R.id.txt_input);
@@ -910,7 +908,7 @@ public class MainActivity extends AppCompatActivity
      */
     private Snackbar showErrorSnackBar(String message)
     {
-        var popup = Snackbar.make(this.androidContentView, message, Snackbar.LENGTH_INDEFINITE);
+        var popup = Snackbar.make(coordinatorView, message, Snackbar.LENGTH_INDEFINITE);
         popup.setAction(R.string.repeat_button_caption, view -> {
             var text = Objects.requireNonNull(txtQuery.getText()).toString().replace("null", "");
             this.startTopFilmsDownloadTask(_nextPageNumber);

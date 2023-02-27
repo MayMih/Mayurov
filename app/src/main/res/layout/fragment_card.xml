@@ -1,64 +1,69 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView
+<androidx.coordinatorlayout.widget.CoordinatorLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/fragment_scroll"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:scrollbarThumbVertical="@color/neo_light"
-    android:scrollbarStyle="outsideOverlay"
-    android:fadeScrollbars="true"
+    android:layout_width="wrap_content"
+    android:layout_height="match_parent"
     >
-
-    <LinearLayout
+    <ScrollView
+        android:id="@+id/fragment_scroll"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
+        android:scrollbarThumbVertical="@color/neo_light"
+        android:scrollbarStyle="outsideOverlay"
+        android:fadeScrollbars="true"
         >
 
-        <!-- Постер будет растягиваться по максимуму, а текст займёт сколько надо -->
-        <ImageView
-            android:id="@+id/poster_image_view"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:layout_marginBottom="10dp"
-            android:scaleType="centerCrop"
-            android:contentDescription="@string/filmposter_image_alt_text"
-            tools:srcCompat="@tools:sample/backgrounds/scenic" />
-
         <LinearLayout
-            android:id="@+id/text_container"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
             >
-            <TextView
-                android:id="@+id/card_title"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="15dp"
-                android:layout_marginTop="10dp"
-                android:layout_marginEnd="15dp"
-                android:layout_marginBottom="10dp"
-                android:ellipsize="end"
-                android:maxLines="2"
-                android:textColor="?colorPrimary"
-                android:textSize="24sp"
-                android:textStyle="bold"
-                tools:text="CARD_TITLE_PLACEHOLDER-CARD_TITLE_PLACEHOLDER" />
 
-            <TextView
-                android:id="@+id/card_content"
+            <!-- Постер будет растягиваться по максимуму, а текст займёт сколько надо -->
+            <ImageView
+                android:id="@+id/poster_image_view"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:layout_marginBottom="10dp"
+                android:scaleType="centerCrop"
+                android:contentDescription="@string/filmposter_image_alt_text"
+                tools:srcCompat="@tools:sample/backgrounds/scenic" />
+
+            <LinearLayout
+                android:id="@+id/text_container"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="15dp"
-                android:layout_marginTop="10dp"
-                android:layout_marginEnd="15dp"
-                android:layout_marginBottom="10dp"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                tools:text="CARD_CONTENT_PLACEHOLDER" />
+                android:orientation="vertical"
+                >
+                <TextView
+                    android:id="@+id/card_title"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="15dp"
+                    android:layout_marginTop="10dp"
+                    android:layout_marginEnd="15dp"
+                    android:layout_marginBottom="10dp"
+                    android:ellipsize="end"
+                    android:maxLines="2"
+                    android:textColor="?colorPrimary"
+                    android:textSize="24sp"
+                    android:textStyle="bold"
+                    tools:text="CARD_TITLE_PLACEHOLDER-CARD_TITLE_PLACEHOLDER" />
+
+                <TextView
+                    android:id="@+id/card_content"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="15dp"
+                    android:layout_marginTop="10dp"
+                    android:layout_marginEnd="15dp"
+                    android:layout_marginBottom="10dp"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    tools:text="CARD_CONTENT_PLACEHOLDER" />
+            </LinearLayout>
         </LinearLayout>
-    </LinearLayout>
-</ScrollView>
+    </ScrollView>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
