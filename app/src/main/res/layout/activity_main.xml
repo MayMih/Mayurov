@@ -128,7 +128,8 @@
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
-                tools:layout="@layout/fragment_card" />
+                tools:layout="@layout/fragment_card"
+                />
         </LinearLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>

@@ -6,7 +6,7 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
-import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentContainerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import android.annotation.SuppressLint;
@@ -48,8 +48,7 @@ import io.swagger.client.api.FilmsApi;
 
 public class MainActivity extends AppCompatActivity
 {
-    private Fragment detailsFragment;
-    private LinearLayout horizontalContainer;
+
     
     
     //region 'Типы'
@@ -219,6 +218,8 @@ public class MainActivity extends AppCompatActivity
     private int lastListViewPos2;
     private View scroller;
     private boolean isLandscape;
+    private CardFragment detailsFragment;
+    private LinearLayout horizontalContainer;
     
     //endregion 'Поля и константы'
     
@@ -253,9 +254,9 @@ public class MainActivity extends AppCompatActivity
                     .setIcon(R.drawable.round_warning_amber_24)
                     .setTitle(R.string.confirm_dialog_title).setMessage(R.string.confirm_clear_dialog_text)
                     .setNegativeButton(android.R.string.no, null)
-                    .setPositiveButton(android.R.string.yes, (dialog, which) -> {
-                        clearList(false);
-                    })
+                    .setPositiveButton(android.R.string.yes, (dialog, which) ->
+                        clearList(false)
+                    )
                     .create();
         }
         return confirmClearDialog;
@@ -379,7 +380,7 @@ public class MainActivity extends AppCompatActivity
     }
     
     /**
-     * Метод восстановления состояния Активити - Вызывается после {@on
+     * Метод восстановления состояния Активити - Вызывается после {@link #onStart()}
      *
      * @param savedInstanceState the data most recently supplied in {@link #onSaveInstanceState}.
      *
@@ -442,7 +443,6 @@ public class MainActivity extends AppCompatActivity
     protected void onResume()
     {
         super.onResume();
-        //if (this.isLandscape)
         {
             onScreenRotate();
         }
@@ -452,13 +452,15 @@ public class MainActivity extends AppCompatActivity
     {
         final var isBlank = Objects.requireNonNull(txtQuery.getText()).toString().isBlank();
         this.inputPanel.setVisibility(this.isLandscape && isBlank ? View.GONE : View.VISIBLE);
-        
-        if (!this.isLandscape && this.detailsFragment != null)
+        FragmentContainerView fw = findViewById(R.id.details_view);
+        if (!this.isLandscape)
         {
-            //hl.setWeightSum(this.isLandscape ? 2 : 1);
+            for (var fragment : getSupportFragmentManager().getFragments()) {
+                if (fragment instanceof CardFragment) {
+                    getSupportFragmentManager().beginTransaction().remove(fragment).commit();
+                }
+            }
             this.horizontalContainer.setWeightSum(1);
-            getSupportFragmentManager().beginTransaction().remove(detailsFragment).commit();
-            this.detailsFragment = null;
         }
     }
     
@@ -627,14 +629,18 @@ public class MainActivity extends AppCompatActivity
         return (View v) -> {
             if (this.isLandscape)
             {
-                //final FragmentContainerView detailsContainer = findViewById(R.id.details_view);
                 if (this.detailsFragment == null)
                 {
-                    this.detailsFragment = new Fragment(R.layout.fragment_card);
-                    getSupportFragmentManager().beginTransaction().add(R.id.details_view,
-                            this.detailsFragment).commit();
+                    this.detailsFragment = new CardFragment();
+                    getSupportFragmentManager().beginTransaction().add(R.id.details_view, this.detailsFragment)
+                            .setCustomAnimations(android.R.animator.fade_in, android.R.animator.fade_out)
+                            .runOnCommit(() ->
+                                detailsFragment.getFilmDataAsync(id, title)).commit();
                 }
-                getSupportFragmentManager().beginTransaction().show(this.detailsFragment).commit();
+                else
+                {
+                    detailsFragment.getFilmDataAsync(id, title);
+                }
                 horizontalContainer.setWeightSum(2);
             }
             else
@@ -678,12 +684,8 @@ public class MainActivity extends AppCompatActivity
         this.txtQuery.setOnEditorActionListener((v, actionId, event) -> {
             // N.B. Похоже, только для действия Done можно реализовать авто скрытие клавиатуры - при
             //      остальных клава остаётся на экране после клика
-            if (actionId == EditorInfo.IME_ACTION_DONE || actionId == EditorInfo.IME_ACTION_GO ||
-                    actionId == EditorInfo.IME_ACTION_SEARCH)
-            {
-                return false;
-            }
-            return true;
+            return actionId != EditorInfo.IME_ACTION_DONE && actionId != EditorInfo.IME_ACTION_GO &&
+                    actionId != EditorInfo.IME_ACTION_SEARCH;
         });
         // Обработчик изменения текста в поисковом контроле
         this.txtQuery.addTextChangedListener(getSearchTextChangeWatcher());
@@ -1045,7 +1047,6 @@ public class MainActivity extends AppCompatActivity
      * @param kinoApiFilmId ИД фильма в API кинопоиска
      * @param cardTitle     Желаемый заголовок карточки
      */
-    @NonNull
     private void showFilmCardActivity(String kinoApiFilmId, String cardTitle)
     {
         final var switchToCardActivityIntent = new Intent(getApplicationContext(), CardActivity.class);
