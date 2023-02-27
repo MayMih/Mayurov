@@ -14,5 +14,6 @@
         <!-- Customize your theme here. -->
         <item name="android:homeAsUpIndicator">@drawable/back_outlined_24px</item>
         <item name="colorControlNormal">?colorOnPrimary</item>
+        <item name="textBackground">@color/black</item>
     </style>
 </resources>

@@ -6,54 +6,14 @@
     android:layout_height="match_parent"
     tools:context=".CardActivity">
 
-    <ScrollView
-        android:id="@+id/scrollView2"
+
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/fragmentContainerView3"
+        android:name="org.mmu.tinkoffkinolab.CardFragment"
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:orientation="vertical"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/top_toolbar">
-
-            <ImageView
-                android:id="@+id/poster_image_view"
-                android:layout_width="match_parent"
-                android:layout_height="400dp"
-                android:layout_marginBottom="10dp"
-                android:contentDescription="@string/filmposter_image_alt_text"
-                tools:srcCompat="@tools:sample/backgrounds/scenic" />
-
-            <TextView
-                android:id="@+id/card_title"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="15dp"
-                android:layout_marginTop="10dp"
-                android:layout_marginEnd="15dp"
-                android:layout_marginBottom="10dp"
-                android:ellipsize="end"
-                android:maxLines="2"
-                android:textColor="?colorPrimary"
-                android:textSize="24sp"
-                android:textStyle="bold"
-                tools:text="CARD_TITLE_PLACEHOLDER-CARD_TITLE_PLACEHOLDER" />
-
-            <TextView
-                android:id="@+id/card_content"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="15dp"
-                android:layout_marginTop="10dp"
-                android:layout_marginEnd="15dp"
-                android:layout_marginBottom="10dp"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                tools:text="CARD_CONTENT_PLACEHOLDER" />
-        </LinearLayout>
-    </ScrollView>
+        android:layout_height="match_parent"
+        tools:layout="@layout/fragment_card"
+        />
 
     <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/top_tool_bar"
@@ -63,21 +23,5 @@
         android:keepScreenOn="false"
         app:title="@string/app_name"
         app:titleTextColor="@android:color/white" />
-
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:layout_width="match_parent"
-        android:layout_height="match_parent">
-
-        <ProgressBar
-            android:id="@+id/progress_bar"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent">
-
-        </ProgressBar>
-    </androidx.constraintlayout.widget.ConstraintLayout>
 
 </RelativeLayout>

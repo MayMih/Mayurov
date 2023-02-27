@@ -11,7 +11,11 @@ public class FilmsApiHelper
     
     public static FilmsApi getFilmsApi()
     {
-        return Objects.requireNonNullElse(filmsApi, createFilmsApi());
+        if (filmsApi == null)
+        {
+            filmsApi = createFilmsApi();
+        }
+        return filmsApi;
     }
     
     private static FilmsApi createFilmsApi()

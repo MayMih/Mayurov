@@ -10,4 +10,6 @@
     <string name="action_clear_title">Clear All</string>
     <string name="confirm_clear_dialog_text">Are you sure want to delete all items?</string>
     <string name="confirm_dialog_title">Confirmation</string>
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="action_show_search_bar_title">Show search bar</string>
 </resources>
