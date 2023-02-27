@@ -6,6 +6,8 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentContainerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import android.annotation.SuppressLint;
@@ -24,6 +26,7 @@ import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -47,7 +50,8 @@ import io.swagger.client.api.FilmsApi;
 
 public class MainActivity extends AppCompatActivity
 {
-    private boolean _isFinished;
+    private Fragment detailsFragment;
+    private LinearLayout horizontalContainer;
     
     
     //region 'Типы'
@@ -259,6 +263,47 @@ public class MainActivity extends AppCompatActivity
         return confirmClearDialog;
     }
     
+    
+    private TextWatcher searchTextChangeWatcher;
+    
+    /**
+     * Обработчик изменения текста в виджете Поиска
+     */
+    @NonNull
+    private TextWatcher getSearchTextChangeWatcher()
+    {
+        if (this.searchTextChangeWatcher == null)
+        {
+            this.searchTextChangeWatcher = new TextWatcher()
+            {
+                @Override
+                public void beforeTextChanged(CharSequence s, int start, int count, int after)
+                {
+                }
+                
+                @Override
+                public void onTextChanged(CharSequence s, int start, int before, int count)
+                {
+                }
+                
+                @Override
+                public void afterTextChanged(Editable s)
+                {
+                    final var query = s.toString();
+                    if (query.isBlank())
+                    {
+                        showFilmCardsUI();
+                    }
+                    else
+                    {
+                        filterCardListUI(s.toString(), getCurrentFilmListStream());
+                    }
+                }
+            };
+        }
+        return searchTextChangeWatcher;
+    }
+    
     //endregion 'Свойства'
     
     
@@ -311,6 +356,7 @@ public class MainActivity extends AppCompatActivity
         this.imageCacheDirPath = new File(this.getCacheDir(), Constants.FAVOURITES_CASH_DIR_NAME);
         this.scroller = findViewById(R.id.card_scroller);
         this.isLandscape = this.getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
+        this.horizontalContainer = findViewById(R.id.horizontal_view);
     
         this.setEventHandlers();
         
@@ -330,6 +376,7 @@ public class MainActivity extends AppCompatActivity
     {
         super.onStart();
         Log.d(LOG_TAG, "---------------- In the onStart() method");
+        this.horizontalContainer.setWeightSum(1);
         Log.w(LOG_TAG, "Exit of onStart() method ---------------------");
     }
     
@@ -365,12 +412,6 @@ public class MainActivity extends AppCompatActivity
         Log.d(LOG_TAG, "---------------------- состояние восстановлено! ----------------");
     }
     
-    private void onScreenRotate()
-    {
-        final var isBlank = Objects.requireNonNull(txtQuery.getText()).toString().isBlank();
-        this.inputPanel.setVisibility(isLandscape && isBlank ? View.GONE : View.VISIBLE);
-    }
-    
     /**
      * Обработчик поворота экрана
      *
@@ -403,17 +444,24 @@ public class MainActivity extends AppCompatActivity
     protected void onResume()
     {
         super.onResume();
-        if (this.isLandscape)
+        //if (this.isLandscape)
         {
             onScreenRotate();
         }
     }
     
-    @Override
-    protected void onDestroy()
+    private void onScreenRotate()
     {
-        super.onDestroy();
-        _isFinished = isFinishing();
+        final var isBlank = Objects.requireNonNull(txtQuery.getText()).toString().isBlank();
+        this.inputPanel.setVisibility(this.isLandscape && isBlank ? View.GONE : View.VISIBLE);
+        
+        if (!this.isLandscape && this.detailsFragment != null)
+        {
+            //hl.setWeightSum(this.isLandscape ? 2 : 1);
+            this.horizontalContainer.setWeightSum(1);
+            getSupportFragmentManager().beginTransaction().remove(detailsFragment).commit();
+            this.detailsFragment = null;
+        }
     }
     
     /**
@@ -426,7 +474,9 @@ public class MainActivity extends AppCompatActivity
     {
         super.onSaveInstanceState(outState);
         // TODO: Нужно как-то определять, когда происходит выход из программы. а не поворот, чтобы
-        // не перезаписывать файл при каждом повороте
+        // не перезаписывать файл при каждом повороте - если же это невозможно, то лучше наверно будет
+        // обновлять файл избранного не при переключении Экранов, а при изменении списка Избранного,
+        // т.к. по идее это должно происходить реже.
         if (favouritesMap == null || favouritesMap.isEmpty())
         {
             this.deleteFile(Constants.FAVOURITES_LIST_FILE_NAME);
@@ -475,6 +525,8 @@ public class MainActivity extends AppCompatActivity
             }
             case R.id.action_go_to_top:
             {
+                // N.B. этот код достаточно надёжен, т.к. внутри SwipeRefreshContainer может быть только
+                // что-то типа ScrollView
                 swipeRefreshContainer.getChildAt(0).scrollTo(0, 0);
                 break;
             }
@@ -533,9 +585,9 @@ public class MainActivity extends AppCompatActivity
     /**
      * Обработчик прокрутки списка фильмов до конца - подгружает новую "страницу" в конец списка топов
      */
-    private void onScrollChange(View v, int scrollX, int scrollY, int oldScrollX, int oldScrollY)
+    private void onScrollChange(@NonNull View v, int scrollX, int scrollY, int oldScrollX, int oldScrollY)
     {
-        boolean isBottomReached = cardsContainer.getBottom() - v.getBottom() - scrollY == 0;
+        final boolean isBottomReached = cardsContainer.getBottom() - v.getBottom() - scrollY == 0;
         if (isBottomReached && !isFiltered)
         {
             if (_currentViewMode == ViewMode.POPULAR && _nextPageNumber < _topFilmsPagesCount)
@@ -553,46 +605,7 @@ public class MainActivity extends AppCompatActivity
         }
     }
     
-    
-    private TextWatcher searchTextChangeWatcher;
-    
-    /**
-     * Обработчик изменения текста в виджете Поиска
-     */
-    @NonNull
-    private TextWatcher getSearchTextChangeWatcher()
-    {
-        if (this.searchTextChangeWatcher == null)
-        {
-            searchTextChangeWatcher = new TextWatcher()
-            {
-                @Override
-                public void beforeTextChanged(CharSequence s, int start, int count, int after)
-                {
-                }
-                
-                @Override
-                public void onTextChanged(CharSequence s, int start, int before, int count)
-                {
-                }
-                
-                @Override
-                public void afterTextChanged(Editable s)
-                {
-                    final var query = s.toString();
-                    if (query.isBlank())
-                    {
-                        showFilmCardsUI();
-                    }
-                    else
-                    {
-                        filterCardListUI(s.toString(), getCurrentFilmListStream());
-                    }
-                }
-            };
-        }
-        return searchTextChangeWatcher;
-    }
+
     
     /**
      * @return Возвращает нужный поток Фильмов в зависимости от выбранной вкладки UI
@@ -613,9 +626,29 @@ public class MainActivity extends AppCompatActivity
     @NonNull
     private View.OnClickListener getOnListItemClickListener(String id, String title)
     {
-        return (View v) -> showFilmCardActivity(id, title);
+        return (View v) -> {
+            if (this.isLandscape)
+            {
+                //final FragmentContainerView detailsContainer = findViewById(R.id.details_view);
+                if (this.detailsFragment == null)
+                {
+                    this.detailsFragment = new Fragment(R.layout.fragment_card);
+                    getSupportFragmentManager().beginTransaction().add(R.id.details_view,
+                            this.detailsFragment).commit();
+                }
+                getSupportFragmentManager().beginTransaction().show(this.detailsFragment).commit();
+                horizontalContainer.setWeightSum(2);
+            }
+            else
+            {
+                showFilmCardActivity(id, title);
+            }
+        };
     }
     
+    /**
+     * Обработчик скрытия панели Поиска - очищает поле ввода поискового запроса
+     */
     private void onSearchBarVisibleChanged()
     {
         if (this.inputPanel.getVisibility() == View.GONE)
