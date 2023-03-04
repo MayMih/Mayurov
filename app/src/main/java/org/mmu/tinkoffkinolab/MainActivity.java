@@ -1092,7 +1092,7 @@ public class MainActivity extends AppCompatActivity
      */
     private void saveFavouritesList()
     {
-        try (BufferedWriter fw = new BufferedWriter(new FileWriter(this.favouritesListFilePath)))
+        try (var f = new FileWriter(this.favouritesListFilePath); var fw = new BufferedWriter(f))
         {
             favouritesMap.forEach((id, filmData) -> {
                 try
